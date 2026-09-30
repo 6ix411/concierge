@@ -3,12 +3,12 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import { getServerEnv } from "@/lib/env/server";
+import { getPublicEnv } from "@/lib/env/client";
 import type { Database } from "@/types/database";
 
 /** Supabase client for Server Components, Server Actions and Route Handlers, acting as the signed-in user. */
 export async function createClient() {
-  const env = getServerEnv();
+  const env = getPublicEnv();
   const cookieStore = await cookies();
 
   return createServerClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {

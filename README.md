@@ -64,6 +64,7 @@ src/
     ui/                Reusable primitives (Button, Card, Input, Badge)
     layout/            Page chrome (Container, SiteHeader, SiteFooter)
   lib/
+    auth/              Session, role guards, sign-in/up actions, admin audit
     env/               Validated env: schema.ts, server.ts (server-only), client.ts (public)
     errors/            AppError, JSON error responses, logger
     supabase/          Browser, server, admin (service role) and proxy clients
@@ -71,18 +72,91 @@ src/
     payments/          PaymentProvider interface, Paystack and Flutterwave adapters
     utils/             Small helpers
   types/               Roles and database types
-  proxy.ts             Refreshes the Supabase session on each request
+  proxy.ts             Refreshes the session; redirects by role
 supabase/
-  migrations/          SQL migrations (profiles + roles + RLS)
+  migrations/          SQL migrations (schema, triggers, RLS, storage)
+  tests/               Database access-control tests (pgTAP)
   seed.sql             Local seed data
 tests/                 Test setup
 ```
 
-## Roles
+## Database
 
-Three roles live in `public.profiles.role`: `customer`, `business`, `admin`.
-People choose customer or business at sign-up; `admin` can only be granted server-side by an admin.
-Users can edit their own name, phone and avatar but never their role (enforced in the database).
+Migrations live in `supabase/migrations` and run in order:
+
+| Migration                | What it holds                                                     |
+| ------------------------ | ----------------------------------------------------------------- |
+| `core_schema`            | Enums and the 21 core tables, relationships, indexes, constraints |
+| `functions_and_triggers` | Sign-up trigger, permission helpers, integrity triggers           |
+| `row_level_security`     | Table/column privileges and RLS policies for every table          |
+| `storage`                | Storage buckets and who can upload or read each one               |
+| `reference_data`         | Platform settings every environment needs                         |
+
+Money is stored as whole kobo (`bigint`), never as decimals.
+
+Useful commands (local Supabase must be running):
+
+```bash
+npm run db:reset   # rebuild the local database from migrations + seed
+npm run db:test    # access-control tests in supabase/tests (pgTAP)
+npm run db:lint    # check database functions for errors
+npm run db:types   # regenerate src/types/database.ts
+```
+
+## Roles and access control
+
+Roles live in `public.users.role`: `customer`, `business`, `admin`.
+
+Access is checked in three places, all on the server:
+
+1. **Database.** Every table has row level security. Column privileges decide what a signed-in
+   client can ever write: only "content" it owns (its name, its business profile, services, areas,
+   availability, portfolio, chat messages). Money, statuses, verification, reviews, disputes and
+   roles are never writable from the browser.
+2. **Server code.** `src/lib/auth/session.ts` provides `requireUser`, `requireRole`,
+   `requireBusinessOwner` (for actions and API routes) and `requireAreaAccess` (for pages).
+   The role always comes from the database, never from the browser. Privileged writes use the
+   service-role client only after these checks, and admin decisions go to `admin_actions` via
+   `recordAdminAction`.
+3. **Proxy.** `src/proxy.ts` redirects people away from areas their role can't use and serves the
+   private admin link. This is a convenience; layouts and pages check again.
+
+| Area            | Who can enter      |
+| --------------- | ------------------ |
+| `/account`      | customers, admins  |
+| `/business`     | businesses, admins |
+| `/<ADMIN_PATH>` | admins             |
+
+### Private admin link
+
+The admin dashboard has no public URL and is never linked on the site. It lives at
+`https://your-site/<ADMIN_PATH>`, where `ADMIN_PATH` is a secret server-only env var
+(16-64 characters; generate one with `openssl rand -hex 16`). It is required in production.
+
+- Admins are sent there automatically after signing in.
+- Anyone else, signed in or not, gets the normal "Page not found" at that URL.
+- The internal route `/admin` always returns 404.
+- Links inside the dashboard are built with `adminHref()` (`src/lib/auth/admin-path.ts`).
+- Changing `ADMIN_PATH` and redeploying moves the dashboard to a new private link.
+- Locally, `.env.development` uses `http://localhost:3000/admin-local-dev-only`.
+
+Rules the database enforces no matter who writes:
+
+- Nobody can pick `admin` at sign-up, and users can't change their own role.
+- Only approved businesses are visible to the public (and later, to the AI Concierge).
+- Bookings follow a fixed status flow; chat opens only when a booking is confirmed (paid).
+- Only the booking's customer and the business can post in its chat, as themselves.
+  There is no AI sender: AI Concierge history is stored separately in `ai_conversations`.
+- Reviews need a completed booking; business ratings update automatically.
+- The admin audit log can't be edited or deleted.
+
+### Creating the first admin
+
+Sign up normally, then run this once in the Supabase SQL editor:
+
+```sql
+update public.users set role = 'admin' where email = 'you@example.com';
+```
 
 ## Error handling
 

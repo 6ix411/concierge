@@ -33,6 +33,16 @@ describe("server env", () => {
     );
   });
 
+  it("requires a private admin path in production", () => {
+    expect(() =>
+      parseEnv(
+        serverEnvSchema,
+        { ...base, APP_ENV: "production", PAYSTACK_SECRET_KEY: "sk_live_x" },
+        "server",
+      ),
+    ).toThrow(/ADMIN_PATH/);
+  });
+
   it("rejects test payment keys in production", () => {
     expect(() => parseEnv(serverEnvSchema, { ...base, APP_ENV: "production" }, "server")).toThrow(
       /Test payment keys/,
@@ -40,7 +50,12 @@ describe("server env", () => {
     expect(() =>
       parseEnv(
         serverEnvSchema,
-        { ...base, APP_ENV: "production", PAYSTACK_SECRET_KEY: "sk_live_x" },
+        {
+          ...base,
+          APP_ENV: "production",
+          PAYSTACK_SECRET_KEY: "sk_live_x",
+          ADMIN_PATH: "a1b2c3d4e5f6a7b8c9d0",
+        },
         "server",
       ),
     ).not.toThrow();
