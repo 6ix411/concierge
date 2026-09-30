@@ -1,6 +1,6 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { AppError } from "@/lib/errors";
@@ -81,9 +81,16 @@ export async function requireBusinessOwner(
   return user;
 }
 
-/** For pages and layouts: redirects to sign-in, or to the user's own area, instead of throwing. */
+/**
+ * For pages and layouts: redirects to sign-in, or to the user's own area, instead of throwing.
+ * The admin area answers 404 to anyone who isn't an active admin, so its existence stays private.
+ */
 export async function requireAreaAccess(area: ProtectedArea): Promise<SessionUser> {
   const user = await getSessionUser();
+  if (area === "admin") {
+    if (!user || user.status !== "active" || user.role !== "admin") notFound();
+    return user;
+  }
   if (!user) redirect(`/sign-in?next=${encodeURIComponent(areaPaths[area])}`);
   if (user.status !== "active") redirect("/account-suspended");
   if (!canAccessArea(user.role, area)) redirect(homePathForRole(user.role));

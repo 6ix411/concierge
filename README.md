@@ -118,14 +118,27 @@ Access is checked in three places, all on the server:
    The role always comes from the database, never from the browser. Privileged writes use the
    service-role client only after these checks, and admin decisions go to `admin_actions` via
    `recordAdminAction`.
-3. **Proxy.** `src/proxy.ts` redirects people away from areas their role can't use. This is a
-   convenience; layouts and pages check again.
+3. **Proxy.** `src/proxy.ts` redirects people away from areas their role can't use and serves the
+   private admin link. This is a convenience; layouts and pages check again.
 
-| Area        | Who can enter      |
-| ----------- | ------------------ |
-| `/account`  | customers, admins  |
-| `/business` | businesses, admins |
-| `/admin`    | admins             |
+| Area            | Who can enter      |
+| --------------- | ------------------ |
+| `/account`      | customers, admins  |
+| `/business`     | businesses, admins |
+| `/<ADMIN_PATH>` | admins             |
+
+### Private admin link
+
+The admin dashboard has no public URL and is never linked on the site. It lives at
+`https://your-site/<ADMIN_PATH>`, where `ADMIN_PATH` is a secret server-only env var
+(16-64 characters; generate one with `openssl rand -hex 16`). It is required in production.
+
+- Admins are sent there automatically after signing in.
+- Anyone else, signed in or not, gets the normal "Page not found" at that URL.
+- The internal route `/admin` always returns 404.
+- Links inside the dashboard are built with `adminHref()` (`src/lib/auth/admin-path.ts`).
+- Changing `ADMIN_PATH` and redeploying moves the dashboard to a new private link.
+- Locally, `.env.development` uses `http://localhost:3000/admin-local-dev-only`.
 
 Rules the database enforces no matter who writes:
 

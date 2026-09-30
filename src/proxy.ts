@@ -1,28 +1,56 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isInternalAdminPath, toInternalAdminPath } from "@/lib/auth/admin-path";
 import { areaForPath, canAccessArea, homePathForRole } from "@/lib/auth/permissions";
 import { updateSession } from "@/lib/supabase/proxy";
 
 /**
- * Refreshes the session and sends signed-out visitors away from protected areas.
- * This is a fast first check that gives clean redirects. Every protected layout, page, action and route handler
- * verifies the user and role again on the server (src/lib/auth/session.ts), and the
+ * Refreshes the session and routes protected areas.
+ * This is a fast first check that gives clean redirects. Every protected layout, page, action and
+ * route handler verifies the user and role again on the server (src/lib/auth/session.ts), and the
  * database enforces row level security on top.
  */
 export async function proxy(request: NextRequest) {
   const { response, userId, getActiveRole } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
-  const area = areaForPath(pathname);
-  if (!area) return response;
 
+  const withSessionCookies = (next: NextResponse) => {
+    for (const cookie of response.cookies.getAll()) next.cookies.set(cookie);
+    return next;
+  };
   const redirectTo = (path: string, query = "") => {
     const url = request.nextUrl.clone();
     url.pathname = path;
     url.search = query;
-    const redirect = NextResponse.redirect(url);
-    for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-    return redirect;
+    return withSessionCookies(NextResponse.redirect(url));
   };
+  // Renders the regular 404 page, identical to any unknown URL.
+  const notFound = () => {
+    const url = request.nextUrl.clone();
+    url.pathname = "/_not-found";
+    url.search = "";
+    return withSessionCookies(NextResponse.rewrite(url, { status: 404 }));
+  };
+
+  // The internal admin route is never reachable directly.
+  if (isInternalAdminPath(pathname)) return notFound();
+
+  const area = areaForPath(pathname);
+  if (!area) return response;
+
+  if (area === "admin") {
+    // Anyone who isn't a signed-in, active admin sees a plain 404 at the private URL.
+    const role = userId ? await getActiveRole() : null;
+    const internal = toInternalAdminPath(pathname);
+    if (role !== "admin" || !internal) return notFound();
+
+    const url = request.nextUrl.clone();
+    url.pathname = internal;
+    const rewrite = withSessionCookies(NextResponse.rewrite(url, { request }));
+    rewrite.headers.set("X-Robots-Tag", "noindex, nofollow");
+    rewrite.headers.set("Cache-Control", "private, no-store");
+    return rewrite;
+  }
 
   if (!userId) return redirectTo("/sign-in", `?next=${encodeURIComponent(pathname + search)}`);
 

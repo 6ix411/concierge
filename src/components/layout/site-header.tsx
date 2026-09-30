@@ -18,12 +18,15 @@ export async function SiteHeader() {
         <nav className="flex items-center gap-1 text-sm">
           {user ? (
             <>
-              <Link
-                href={homePathForRole(user.role)}
-                className="rounded-xl px-3 py-2 font-medium hover:bg-surface-muted"
-              >
-                {user.role === "admin" ? "Admin" : user.role === "business" ? "Dashboard" : "My account"}
-              </Link>
+              {/* No link to the admin dashboard anywhere on the site: admins use their private URL. */}
+              {user.role !== "admin" && (
+                <Link
+                  href={homePathForRole(user.role)}
+                  className="rounded-xl px-3 py-2 font-medium hover:bg-surface-muted"
+                >
+                  {user.role === "business" ? "Dashboard" : "My account"}
+                </Link>
+              )}
               <SignOutButton />
             </>
           ) : (

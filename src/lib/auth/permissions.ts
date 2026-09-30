@@ -1,5 +1,7 @@
 import type { UserRole } from "@/types/roles";
 
+import { adminHref, getAdminPath } from "./admin-path";
+
 /** Protected areas of the app and the roles allowed into each. Admins can enter every area. */
 export const areaRoles = {
   account: ["customer", "admin"],
@@ -9,11 +11,11 @@ export const areaRoles = {
 
 export type ProtectedArea = keyof typeof areaRoles;
 
-export const areaPaths: Record<ProtectedArea, string> = {
+/** Public URLs for the customer and business areas. The admin area has a private URL (see admin-path.ts). */
+export const areaPaths = {
   account: "/account",
   business: "/business",
-  admin: "/admin",
-};
+} as const satisfies Partial<Record<ProtectedArea, string>>;
 
 export function hasRole(role: UserRole, allowed: readonly UserRole[]): boolean {
   return allowed.includes(role);
@@ -31,15 +33,17 @@ export function homePathForRole(role: UserRole): string {
     case "business":
       return areaPaths.business;
     case "admin":
-      return areaPaths.admin;
+      return adminHref();
   }
 }
 
-/** Which protected area a path belongs to, if any. */
+/** Which protected area a public URL belongs to, if any. */
 export function areaForPath(pathname: string): ProtectedArea | null {
-  for (const [area, path] of Object.entries(areaPaths) as [ProtectedArea, string][]) {
-    if (pathname === path || pathname.startsWith(`${path}/`)) return area;
-  }
+  const under = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
+  const adminPath = getAdminPath();
+  if (adminPath && under(adminPath)) return "admin";
+  if (under(areaPaths.account)) return "account";
+  if (under(areaPaths.business)) return "business";
   return null;
 }
 

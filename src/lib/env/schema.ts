@@ -32,6 +32,11 @@ export const serverEnvSchema = publicEnvSchema
     PAYSTACK_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_WEBHOOK_HASH: z.string().optional(),
+    // Private URL segment for the admin dashboard. Generate with: openssl rand -hex 16
+    ADMIN_PATH: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{16,64}$/, "Use 16-64 letters, numbers, - or _ (e.g. openssl rand -hex 16)")
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.PAYMENT_PROVIDER === "paystack" && !env.PAYSTACK_SECRET_KEY) {
@@ -47,6 +52,9 @@ export const serverEnvSchema = publicEnvSchema
         path: ["FLUTTERWAVE_SECRET_KEY"],
         message: "Required when PAYMENT_PROVIDER=flutterwave",
       });
+    }
+    if (env.APP_ENV === "production" && !env.ADMIN_PATH) {
+      ctx.addIssue({ code: "custom", path: ["ADMIN_PATH"], message: "Required when APP_ENV=production" });
     }
     if (env.APP_ENV === "production") {
       const testKey = [env.PAYSTACK_SECRET_KEY, env.FLUTTERWAVE_SECRET_KEY].some(

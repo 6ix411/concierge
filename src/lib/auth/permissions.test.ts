@@ -19,9 +19,9 @@ describe("canAccessArea", () => {
 
 describe("areaForPath", () => {
   it("matches areas and their sub-paths only", () => {
-    expect(areaForPath("/admin")).toBe("admin");
-    expect(areaForPath("/admin/businesses")).toBe("admin");
-    expect(areaForPath("/administrator")).toBeNull();
+    expect(areaForPath("/business")).toBe("business");
+    expect(areaForPath("/account/bookings")).toBe("account");
+    expect(areaForPath("/accounts")).toBeNull();
     expect(areaForPath("/")).toBeNull();
   });
 });
@@ -30,7 +30,6 @@ describe("homePathForRole", () => {
   it("sends each role to its own area", () => {
     expect(homePathForRole("customer")).toBe("/account");
     expect(homePathForRole("business")).toBe("/business");
-    expect(homePathForRole("admin")).toBe("/admin");
   });
 });
 
