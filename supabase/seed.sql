@@ -1,0 +1,2 @@
+-- Local development seed data. Runs on `supabase db reset`.
+-- Categories, demo businesses and an admin user are added in later stages.

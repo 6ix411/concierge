@@ -30,8 +30,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files: secrets live only in *.local files or the hosting provider.
+# Committed: .env.example (template), .env.development / .env.test /
+# .env.production (non-secret defaults only).
+.env
+.env*.local
+
+# supabase local state
+supabase/.branches
+supabase/.temp
 
 # vercel
 .vercel
