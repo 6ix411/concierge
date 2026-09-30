@@ -5,6 +5,7 @@ import { getServerEnv } from "@/lib/env/server";
 import { AppError } from "@/lib/errors";
 
 import { createFlutterwaveProvider } from "./flutterwave";
+import { createMockProvider } from "./mock";
 import { createPaystackProvider } from "./paystack";
 import type { PaymentProvider } from "./types";
 
@@ -22,5 +23,7 @@ export function getPaymentProvider(name?: PaymentProviderName): PaymentProvider 
     case "flutterwave":
       if (!env.FLUTTERWAVE_SECRET_KEY) throw new AppError("INTERNAL", "Flutterwave is not configured.");
       return createFlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY, env.FLUTTERWAVE_WEBHOOK_HASH);
+    case "mock":
+      return createMockProvider(env.NEXT_PUBLIC_APP_URL, env.APP_ENV);
   }
 }

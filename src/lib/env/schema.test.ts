@@ -19,11 +19,11 @@ describe("server env", () => {
   });
 
   it("treats blank values as missing and lists names without values", () => {
-    expect(() => parseEnv(serverEnvSchema, { ...base, ANTHROPIC_API_KEY: "" }, "server")).toThrow(
-      /ANTHROPIC_API_KEY/,
+    expect(() => parseEnv(serverEnvSchema, { ...base, SUPABASE_SERVICE_ROLE_KEY: "" }, "server")).toThrow(
+      /SUPABASE_SERVICE_ROLE_KEY/,
     );
-    expect(() => parseEnv(serverEnvSchema, { ...base, ANTHROPIC_API_KEY: "" }, "server")).not.toThrow(
-      /service/,
+    expect(() => parseEnv(serverEnvSchema, { ...base, SUPABASE_SERVICE_ROLE_KEY: "" }, "server")).not.toThrow(
+      /sk_test_x/,
     );
   });
 

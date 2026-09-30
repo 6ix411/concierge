@@ -91,8 +91,19 @@ Migrations live in `supabase/migrations` and run in order:
 | `row_level_security`     | Table/column privileges and RLS policies for every table          |
 | `storage`                | Storage buckets and who can upload or read each one               |
 | `reference_data`         | Platform settings every environment needs                         |
+| `customer_platform`      | Approved-only search, public reviews, booking counterpart names   |
 
 Money is stored as whole kobo (`bigint`), never as decimals.
+
+`supabase/seed.sql` loads demo data for local development only: categories, eight approved Lagos
+and Abuja businesses with services, areas, hours and reviews, plus one business still waiting for
+review (it never appears in search). Every demo account uses the password `Password123`:
+
+| Email              | Role                               |
+| ------------------ | ---------------------------------- |
+| `customer@demo.ng` | Customer                           |
+| `owner@demo.ng`    | Business owner (Lush Events Décor) |
+| `admin@demo.ng`    | Admin (use the private admin link) |
 
 Useful commands (local Supabase must be running):
 
@@ -157,6 +168,32 @@ Sign up normally, then run this once in the Supabase SQL editor:
 ```sql
 update public.users set role = 'admin' where email = 'you@example.com';
 ```
+
+## Customer platform
+
+| Page                           | Route                                                        |
+| ------------------------------ | ------------------------------------------------------------ |
+| Home and AI Concierge          | `/`, `/concierge?q=`                                         |
+| Search and results, compare    | `/search`, `/compare?ids=`                                   |
+| Services by category           | `/services`, `/services/[slug]`                              |
+| Business profile               | `/businesses/[slug]`                                         |
+| Booking and quote requests     | `/book/[slug]`                                               |
+| Checkout                       | `/checkout/[bookingId]`                                      |
+| My bookings, messages, reviews | `/account/bookings`, `/account/messages`, `/account/reviews` |
+| Account and settings           | `/account`, `/account/settings`                              |
+
+- **Concierge.** Reads the request (service, area, guests, budget) and ranks only approved
+  businesses from our own database through `search_businesses`. It never searches the web. Until
+  the AI stage it uses rule-based matching (`src/lib/concierge`), so it works without an API key.
+- **Bookings.** Prices always come from the database, never the form. A booking moves
+  `requested → accepted → confirmed` (paid) `→ in_progress → completed`; quote requests go through
+  `quote_requested → quoted → accepted` first. Customers can cancel before paying, or up to 24 hours
+  before the start once paid, and reschedule until the business accepts.
+- **Payments.** `PAYMENT_PROVIDER=mock` (development only; refused in production) completes checkout
+  without a real gateway. Payment is verified server-side and the booking is confirmed once, however
+  many times the callback is hit.
+- **Chat.** Opens when a booking is confirmed and is only between the customer and the business.
+  Messages arrive live through Supabase Realtime. The AI never reads, writes or summarises chat.
 
 ## Error handling
 

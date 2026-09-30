@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { BottomNav } from "@/components/layout/bottom-nav";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { getSessionUser } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/layout/site-header";
 
 import "./globals.css";
@@ -24,13 +26,16 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getSessionUser().catch(() => null);
+  const showBottomNav = !user || user.role === "customer";
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">
+      <body className={`flex min-h-full flex-col font-sans ${showBottomNav ? "pb-16 md:pb-0" : ""}`}>
         <SiteHeader />
         <main className="flex flex-1 flex-col">{children}</main>
         <SiteFooter />
+        {showBottomNav && <BottomNav />}
       </body>
     </html>
   );

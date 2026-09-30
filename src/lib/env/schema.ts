@@ -8,7 +8,8 @@ import { z } from "zod";
 export const appEnvSchema = z.enum(["development", "test", "production"]);
 export type AppEnv = z.infer<typeof appEnvSchema>;
 
-export const paymentProviderSchema = z.enum(["paystack", "flutterwave"]);
+/** "mock" confirms payments instantly for local development and tests. It is refused in production. */
+export const paymentProviderSchema = z.enum(["paystack", "flutterwave", "mock"]);
 export type PaymentProviderName = z.infer<typeof paymentProviderSchema>;
 
 /** Values that are safe to ship to the browser (NEXT_PUBLIC_*). */
@@ -26,7 +27,8 @@ export const serverEnvSchema = publicEnvSchema
   .extend({
     APP_ENV: appEnvSchema.default("development"),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-    ANTHROPIC_API_KEY: z.string().min(1),
+    // Optional until the AI stage; the concierge falls back to platform search without it.
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
     ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
     PAYMENT_PROVIDER: paymentProviderSchema.default("paystack"),
     PAYSTACK_SECRET_KEY: z.string().optional(),
@@ -51,6 +53,13 @@ export const serverEnvSchema = publicEnvSchema
         code: "custom",
         path: ["FLUTTERWAVE_SECRET_KEY"],
         message: "Required when PAYMENT_PROVIDER=flutterwave",
+      });
+    }
+    if (env.APP_ENV === "production" && env.PAYMENT_PROVIDER === "mock") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["PAYMENT_PROVIDER"],
+        message: "mock payments are not allowed in production",
       });
     }
     if (env.APP_ENV === "production" && !env.ADMIN_PATH) {
