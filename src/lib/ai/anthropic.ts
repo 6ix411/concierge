@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 
 import { getServerEnv } from "@/lib/env/server";
+import { AppError } from "@/lib/errors";
 
 let client: Anthropic | undefined;
 
@@ -14,7 +15,9 @@ let client: Anthropic | undefined;
  * - It never takes part in customer–business chat (no replies, suggestions, summaries or negotiation).
  */
 export function getAnthropic(): Anthropic {
-  client ??= new Anthropic({ apiKey: getServerEnv().ANTHROPIC_API_KEY });
+  const apiKey = getServerEnv().ANTHROPIC_API_KEY;
+  if (!apiKey) throw new AppError("INTERNAL", "The AI Concierge is not configured.");
+  client ??= new Anthropic({ apiKey });
   return client;
 }
 

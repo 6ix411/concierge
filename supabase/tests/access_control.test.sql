@@ -1,7 +1,7 @@
 -- Access-control tests. Run with `npm run db:test` (local Supabase must be running).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(37);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the database owner)
@@ -83,8 +83,14 @@ grant execute on function pg_temp.act_as(uuid) to anon, authenticated;
 -- Anonymous visitors
 -- ---------------------------------------------------------------------------
 select pg_temp.act_as(null);
-select results_eq($$ select slug from public.businesses $$, array['chidi-cleaning'],
-  'visitors only see approved businesses');
+select results_eq($$ select slug from public.businesses where slug in ('chidi-cleaning', 'dayo-draft') $$,
+  array['chidi-cleaning'], 'visitors only see approved businesses');
+select ok((select bool_and(slug <> 'dayo-draft') from public.search_businesses(null, null, null, null, 'relevance', 50, 0)),
+  'search never returns unapproved businesses');
+select is_empty($$ select 1 from public.search_businesses('Dayo Draft') $$,
+  'searching an unapproved business by name finds nothing');
+select throws_ok($$ select * from public.get_booking_counterparts(array['00000000-0000-0000-0000-00000000000a'::uuid]) $$,
+  '42501', null, 'visitors cannot look up booking counterparts');
 select throws_ok($$ select * from public.bookings $$, '42501', null, 'visitors cannot query bookings at all');
 
 -- ---------------------------------------------------------------------------
@@ -156,7 +162,8 @@ select is((select count(*)::int from public.bookings), 0, 'a business cannot see
 -- Admin Eve
 -- ---------------------------------------------------------------------------
 reset role; select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
-select is((select count(*)::int from public.businesses), 2, 'admins see every business');
+select is((select count(*)::int from public.businesses where id::text like '10000000-%'), 2,
+  'admins see every business');
 select is((select count(*)::int from public.admin_actions), 1, 'admins read the audit log');
 
 select * from finish();

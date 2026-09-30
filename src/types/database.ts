@@ -1215,6 +1215,26 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
       };
+      get_booking_counterparts: {
+        Args: { user_ids: string[] };
+        Returns: {
+          avatar_path: string;
+          full_name: string;
+          id: string;
+        }[];
+      };
+      get_public_reviews: {
+        Args: { p_business_id: string; p_limit?: number; p_offset?: number };
+        Returns: {
+          business_replied_at: string;
+          business_reply: string;
+          comment: string;
+          created_at: string;
+          id: string;
+          rating: number;
+          reviewer_name: string;
+        }[];
+      };
       is_active_user: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_booking_participant: { Args: { target_booking_id: string }; Returns: boolean };
@@ -1228,6 +1248,35 @@ export type Database = {
         Returns: boolean;
       };
       owns_business: { Args: { target_business_id: string }; Returns: boolean };
+      search_businesses: {
+        Args: {
+          p_category?: string;
+          p_limit?: number;
+          p_location?: string;
+          p_max_price_minor?: number;
+          p_offset?: number;
+          p_query?: string;
+          p_sort?: string;
+        };
+        Returns: {
+          category_name: string;
+          city: string;
+          cover_path: string;
+          description: string;
+          id: string;
+          is_verified: boolean;
+          logo_path: string;
+          matched_services: string[];
+          min_price_minor: number;
+          name: string;
+          rating_avg: number;
+          rating_count: number;
+          relevance: number;
+          served_areas: string[];
+          slug: string;
+          state: string;
+        }[];
+      };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };
     Enums: {
@@ -1247,7 +1296,7 @@ export type Database = {
       business_status: "draft" | "pending_review" | "approved" | "rejected" | "suspended";
       conversation_status: "open" | "closed" | "locked";
       dispute_status: "open" | "under_review" | "resolved" | "rejected";
-      payment_provider: "paystack" | "flutterwave";
+      payment_provider: "paystack" | "flutterwave" | "mock";
       payment_status: "pending" | "success" | "failed" | "abandoned" | "refunded" | "partially_refunded";
       payout_status: "pending" | "processing" | "paid" | "failed" | "on_hold";
       portfolio_media_type: "image" | "video";
@@ -1395,7 +1444,7 @@ export const Constants = {
       business_status: ["draft", "pending_review", "approved", "rejected", "suspended"],
       conversation_status: ["open", "closed", "locked"],
       dispute_status: ["open", "under_review", "resolved", "rejected"],
-      payment_provider: ["paystack", "flutterwave"],
+      payment_provider: ["paystack", "flutterwave", "mock"],
       payment_status: ["pending", "success", "failed", "abandoned", "refunded", "partially_refunded"],
       payout_status: ["pending", "processing", "paid", "failed", "on_hold"],
       portfolio_media_type: ["image", "video"],

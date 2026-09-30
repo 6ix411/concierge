@@ -42,7 +42,8 @@ export function areaForPath(pathname: string): ProtectedArea | null {
   const under = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
   const adminPath = getAdminPath();
   if (adminPath && under(adminPath)) return "admin";
-  if (under(areaPaths.account)) return "account";
+  // Booking and checkout are customer flows too.
+  if (under(areaPaths.account) || under("/book") || under("/checkout")) return "account";
   if (under(areaPaths.business)) return "business";
   return null;
 }
