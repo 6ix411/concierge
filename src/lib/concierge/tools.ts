@@ -7,7 +7,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
-import { formatNaira, formatTime, weekdayNames } from "@/lib/format";
+import { formatNaira, formatPriceRange, formatTime, weekdayNames } from "@/lib/format";
 import type { BusinessProfile } from "@/lib/marketplace/queries";
 import type { MatchFilters } from "@/lib/matching/engine";
 import { resolvePlace } from "@/lib/matching/request";
@@ -204,7 +204,7 @@ export type ToolOutput = { content: unknown; isError?: boolean };
 const errorOutput = (message: string): ToolOutput => ({ content: { error: message }, isError: true });
 
 function describePrice(match: Match) {
-  if (match.min_price_minor !== null) return formatNaira(match.min_price_minor);
+  if (match.min_price_minor !== null) return formatPriceRange(match.min_price_minor, match.max_price_minor);
   return match.has_quote_only ? "price on request" : null;
 }
 
@@ -213,7 +213,7 @@ function summarise(match: Match) {
     provider_id: match.id,
     name: match.name,
     category: match.category_name,
-    from_price: describePrice(match),
+    price_range: describePrice(match),
     matching_services: match.matched_services,
     service_areas: match.served_areas,
     based_in: [match.city, match.state].filter(Boolean).join(", "),

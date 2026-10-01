@@ -43,20 +43,7 @@ export function ResultsList({
       <ul className="grid gap-3 lg:grid-cols-2">
         {visible.map((business) => (
           <li key={business.id}>
-            <BusinessCard
-              business={business}
-              action={
-                <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-muted">
-                  <input
-                    type="checkbox"
-                    name="ids"
-                    value={business.slug}
-                    className="size-4 accent-foreground"
-                  />
-                  Compare
-                </label>
-              }
-            >
+            <BusinessCard business={business}>
               {business.matched_services && business.matched_services.length > 0 && (
                 <p className="line-clamp-1 text-sm text-muted">{business.matched_services.join(" · ")}</p>
               )}

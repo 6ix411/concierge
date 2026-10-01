@@ -11,6 +11,7 @@ export type Match = Omit<
   | "city"
   | "category_name"
   | "min_price_minor"
+  | "max_price_minor"
   | "location_match"
   | "availability"
   | "availability_note"
@@ -24,6 +25,8 @@ export type Match = Omit<
   city: string | null;
   category_name: string | null;
   min_price_minor: number | null;
+  /** Top of the price range across the same services; equals min_price_minor when there's one price. */
+  max_price_minor: number | null;
   /** How well it covers the place asked for; null when no place was given. */
   location_match: "area" | "city" | "state" | "nearby" | null;
   availability: "available" | "unavailable" | "unknown";

@@ -77,7 +77,7 @@ export const getBusinessBySlug = cache(async (slug: string) => {
   if (error) throw new AppError("INTERNAL", "Could not load this business.", { cause: error });
   if (!business) return null;
 
-  const [services, areas, availability, portfolio, reviews] = await Promise.all([
+  const [services, areas, availability, portfolio, reviews, stats] = await Promise.all([
     supabase
       .from("business_services")
       .select(
@@ -98,9 +98,10 @@ export const getBusinessBySlug = cache(async (slug: string) => {
       .eq("business_id", business.id)
       .order("sort_order"),
     supabase.rpc("get_public_reviews", { p_business_id: business.id, p_limit: 20 }),
+    supabase.rpc("get_business_stats", { p_business_id: business.id }).maybeSingle(),
   ]);
 
-  for (const result of [services, areas, availability, portfolio, reviews]) {
+  for (const result of [services, areas, availability, portfolio, reviews, stats]) {
     if (result.error)
       throw new AppError("INTERNAL", "Could not load this business.", { cause: result.error });
   }
@@ -112,6 +113,14 @@ export const getBusinessBySlug = cache(async (slug: string) => {
     availability: availability.data ?? [],
     portfolio: portfolio.data ?? [],
     reviews: reviews.data ?? [],
+    stats: {
+      completedBookings: stats.data?.completed_bookings ?? 0,
+      minPriceMinor: stats.data?.min_price_minor ?? null,
+      maxPriceMinor: stats.data?.max_price_minor ?? null,
+      hasQuoteOnly: stats.data?.has_quote_only ?? false,
+      /** Published reviews with 1 to 5 stars. */
+      ratingBreakdown: stats.data?.rating_breakdown ?? [0, 0, 0, 0, 0],
+    },
   };
 });
 

@@ -34,3 +34,48 @@ export function ReviewList({ reviews, businessName }: { reviews: PublicReview[];
     </ul>
   );
 }
+
+/** Average, review count and how many reviews gave each number of stars. */
+export function RatingSummary({
+  average,
+  count,
+  breakdown,
+}: {
+  average: number;
+  count: number;
+  /** Reviews with 1, 2, 3, 4 and 5 stars. */
+  breakdown: number[];
+}) {
+  if (count === 0) return null;
+  const total = breakdown.reduce((sum, n) => sum + n, 0) || 1;
+  return (
+    <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-border bg-surface p-4">
+      <div className="flex flex-col items-start gap-1">
+        <p className="text-3xl font-semibold tabular-nums">{average.toFixed(1)}</p>
+        <Stars value={Math.round(average)} />
+        <p className="text-sm text-muted">
+          {count} review{count === 1 ? "" : "s"}
+        </p>
+      </div>
+      <dl className="flex min-w-48 flex-1 flex-col gap-1 text-sm">
+        {[5, 4, 3, 2, 1].map((stars) => {
+          const n = breakdown[stars - 1] ?? 0;
+          return (
+            <div key={stars} className="flex items-center gap-2">
+              <dt className="w-12 text-muted tabular-nums">{stars} star</dt>
+              <dd className="flex flex-1 items-center gap-2">
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                  <span
+                    className="block h-full rounded-full bg-accent"
+                    style={{ width: `${(n / total) * 100}%` }}
+                  />
+                </span>
+                <span className="w-6 text-right text-muted tabular-nums">{n}</span>
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
+}

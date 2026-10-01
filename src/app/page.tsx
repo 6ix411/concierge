@@ -118,7 +118,7 @@ export default async function HomePage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {topRated.map((business) => (
-                <BusinessCard key={business.id} business={business} />
+                <BusinessCard key={business.id} business={business} compare={false} />
               ))}
             </div>
           </section>

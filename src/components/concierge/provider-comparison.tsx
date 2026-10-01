@@ -4,7 +4,7 @@ import { BusinessAvatar } from "@/components/marketplace/business-avatar";
 import { VerifiedBadge } from "@/components/marketplace/verified-badge";
 import { LinkButton } from "@/components/ui";
 import type { Recommendation } from "@/lib/concierge/types";
-import { formatNairaShort } from "@/lib/format";
+import { formatPriceRange } from "@/lib/format";
 
 const locationText: Record<string, string> = {
   area: "Serves your area",
@@ -15,11 +15,12 @@ const locationText: Record<string, string> = {
 
 const rows: { label: string; render: (b: Recommendation) => string }[] = [
   {
-    label: "From",
-    render: (b) =>
-      b.min_price_minor !== null
-        ? `${formatNairaShort(b.min_price_minor)}${b.within_budget === false ? " (over budget)" : ""}`
-        : "Price on request",
+    label: "Price",
+    render: (b) => {
+      const price = formatPriceRange(b.min_price_minor, b.max_price_minor);
+      if (!price) return b.has_quote_only ? "Price on request" : "Not listed";
+      return `${price}${b.within_budget === false ? " (over budget)" : ""}`;
+    },
   },
   { label: "Matching service", render: (b) => b.matched_services?.[0] ?? "—" },
   {

@@ -18,6 +18,7 @@ const base: Match = {
   rating_count: 12,
   category_name: "Photography & video",
   min_price_minor: 25_000_000,
+  max_price_minor: 25_000_000,
   has_quote_only: false,
   matched_services: ["Birthday & Party Coverage (up to 150 guests)"],
   served_areas: ["Victoria Island"],

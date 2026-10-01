@@ -27,6 +27,7 @@ export function match(overrides: Partial<Match> & Pick<Match, "id" | "name">): M
     rating_count: 0,
     category_name: "Photography & video",
     min_price_minor: null,
+    max_price_minor: null,
     has_quote_only: false,
     matched_services: [],
     served_areas: [],
