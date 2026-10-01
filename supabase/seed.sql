@@ -229,8 +229,20 @@ begin
   update public.bookings set status = 'accepted' where id = bk;
   update public.bookings set status = 'confirmed' where id = bk;
   update public.bookings set status = 'completed' where id = bk;
-  insert into public.reviews (booking_id, customer_id, business_id, rating, comment, business_reply, business_replied_at)
-  values (bk, p_customer, biz, p_rating, p_comment, p_reply, case when p_reply is not null then now() end);
+  -- Paid a few days before the job; payouts older than two weeks have been paid out.
+  update public.bookings set created_at = now() - make_interval(days => p_days_ago + 5) where id = bk;
+  insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
+  values (bk, p_customer, 'paystack', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success',
+    now() - make_interval(days => p_days_ago + 3));
+  insert into public.payouts (business_id, booking_id, gross_minor, commission_minor, amount_minor, status, paid_at)
+  values (biz, bk, coalesce(svc.price_minor, 0), coalesce(svc.price_minor, 0) / 10,
+    coalesce(svc.price_minor, 0) - coalesce(svc.price_minor, 0) / 10,
+    case when p_days_ago > 14 then 'paid'::public.payout_status else 'pending'::public.payout_status end,
+    case when p_days_ago > 14 then now() - make_interval(days => p_days_ago - 7) end);
+  if p_rating is not null then
+    insert into public.reviews (booking_id, customer_id, business_id, rating, comment, business_reply, business_replied_at)
+    values (bk, p_customer, biz, p_rating, p_comment, p_reply, case when p_reply is not null then now() end);
+  end if;
 end;
 $$;
 
@@ -253,3 +265,60 @@ select pg_temp.past_booking('a0000000-0000-0000-0000-000000000003', 'glow-studio
   'My makeup lasted all night and the gele was perfect.');
 select pg_temp.past_booking('a0000000-0000-0000-0000-000000000002', 'lens-and-light', 'Photo + Cinematic Video', 90, 5,
   'The highlight film made my mum cry. Incredible work.');
+
+-- ---------------------------------------------------------------------------
+-- A few bookings in other states, so the admin dashboard has something to manage.
+-- ---------------------------------------------------------------------------
+
+-- A completed job the customer has disputed: the payout is on hold.
+select pg_temp.past_booking('a0000000-0000-0000-0000-000000000003', 'fixit-plumbing', 'Plumbing Call-out (per hour)', 3, null, null);
+with bk as (
+  select b.id from public.bookings b
+  join public.businesses biz on biz.id = b.business_id
+  where biz.slug = 'fixit-plumbing' and b.customer_id = 'a0000000-0000-0000-0000-000000000003'
+)
+insert into public.disputes (booking_id, opened_by, reason, description, previous_booking_status)
+select id, 'a0000000-0000-0000-0000-000000000003', 'Problem came back',
+  'The kitchen sink started leaking again the next day and the plumber hasn''t replied.', 'completed'
+from bk;
+update public.bookings set status = 'disputed'
+where id in (select booking_id from public.disputes);
+update public.payouts set status = 'on_hold'
+where booking_id in (select booking_id from public.disputes);
+
+-- An upcoming paid booking and a new request.
+create function pg_temp.open_booking(p_customer uuid, p_business_slug text, p_service text, p_days_ahead int,
+  p_status public.booking_status)
+returns void language plpgsql as $$
+declare
+  biz uuid;
+  svc public.business_services;
+  bk uuid;
+begin
+  select id into biz from public.businesses where slug = p_business_slug;
+  select * into svc from public.business_services where business_id = biz and name = p_service;
+  insert into public.bookings (customer_id, business_id, status, scheduled_start, scheduled_end,
+    subtotal_minor, platform_fee_minor, total_minor, commission_rate_bps, city, state)
+  values (p_customer, biz, 'requested', date_trunc('day', now()) + make_interval(days => p_days_ahead, hours => 10),
+    date_trunc('day', now()) + make_interval(days => p_days_ahead, hours => 13),
+    coalesce(svc.price_minor, 0), 0, coalesce(svc.price_minor, 0), 1000, 'Lekki', 'Lagos')
+  returning id into bk;
+  insert into public.booking_items (booking_id, service_id, name, unit_price_minor, quantity)
+  values (bk, svc.id, svc.name, coalesce(svc.price_minor, 0), 1);
+  if p_status in ('accepted', 'confirmed', 'cancelled') then
+    update public.bookings set status = 'accepted' where id = bk;
+  end if;
+  if p_status = 'confirmed' then
+    update public.bookings set status = 'confirmed' where id = bk;
+    insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
+    values (bk, p_customer, 'paystack', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success', now());
+  elsif p_status = 'cancelled' then
+    update public.bookings set status = 'cancelled', cancelled_by = p_customer,
+      cancellation_reason = 'Event moved to next year.' where id = bk;
+  end if;
+end;
+$$;
+
+select pg_temp.open_booking('a0000000-0000-0000-0000-000000000003', 'mama-put-catering', 'Wedding Catering (per 100 guests)', 21, 'confirmed');
+select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'royal-touch-decorations', 'White Wedding Reception Decor', 30, 'requested');
+select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'glow-studio-makeup', 'Bridal Makeup + Gele', 14, 'cancelled');

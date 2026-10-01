@@ -6,10 +6,13 @@ import { notFound } from "next/navigation";
 import { FormMessage } from "@/components/auth/form-message";
 import { AcceptQuoteForm, CancelBookingForm, RescheduleForm } from "@/components/bookings/booking-actions";
 import { BookingStatusBadge } from "@/components/bookings/booking-status-badge";
+import { DisputeStatus } from "@/components/disputes/dispute-status";
+import { ReportProblemForm } from "@/components/disputes/report-problem";
 import { BusinessAvatar } from "@/components/marketplace/business-avatar";
 import { Stars } from "@/components/marketplace/rating";
 import { VerifiedBadge } from "@/components/marketplace/verified-badge";
 import { LinkButton } from "@/components/ui";
+import { canOpenDispute } from "@/lib/admin/rules";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { getCustomerBooking } from "@/lib/bookings/queries";
 import {
@@ -57,6 +60,7 @@ export default async function BookingDetailPage({
         : null;
   const notice = noticeKey ? notices[noticeKey] : undefined;
   const paid = booking.payments.some((p) => p.status === "success");
+  const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const today = lagosToday();
   const current = booking.scheduled_start ? toLagosParts(booking.scheduled_start) : undefined;
 
@@ -181,6 +185,10 @@ export default async function BookingDetailPage({
           />
         )}
         {canCustomerCancel(booking) && <CancelBookingForm bookingId={booking.id} afterPayment={paid} />}
+        {dispute && <DisputeStatus dispute={dispute} viewer="customer" />}
+        {!dispute && canOpenDispute(booking) && (
+          <ReportProblemForm bookingId={booking.id} otherParty={booking.businesses?.name ?? "the business"} />
+        )}
 
         <section className="rounded-2xl border border-border p-4">
           <h2 className="mb-3 text-sm font-semibold">Timeline</h2>

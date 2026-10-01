@@ -1,0 +1,58 @@
+import "server-only";
+
+import { commissionFor } from "@/lib/business/earnings";
+import { AppError } from "@/lib/errors";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+/**
+ * Records what the business is owed for a completed booking: the total minus the platform's commission.
+ * Safe to call twice: a booking only ever has one payout. Paying it out happens in the payments stage.
+ */
+export async function recordPayout(booking: {
+  id: string;
+  business_id: string;
+  total_minor: number;
+  commission_rate_bps: number;
+}): Promise<void> {
+  const db = createAdminClient();
+  // A payout held during a dispute is released rather than duplicated.
+  const { data: held } = await db
+    .from("payouts")
+    .update({ status: "pending" })
+    .eq("booking_id", booking.id)
+    .eq("status", "on_hold")
+    .select("id");
+  if (held?.length) return;
+
+  const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
+  const { error } = await db.from("payouts").insert({
+    business_id: booking.business_id,
+    booking_id: booking.id,
+    gross_minor: booking.total_minor,
+    commission_minor: commission,
+    amount_minor: booking.total_minor - commission,
+  });
+  // 23505: a payout already exists for this booking.
+  if (error && error.code !== "23505")
+    throw new AppError("INTERNAL", "Booking completed, but the payout wasn't recorded.", { cause: error });
+}
+
+/** Holds the payout while a dispute is open, so nothing is paid out before it's settled. */
+export async function holdPayout(bookingId: string): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("payouts")
+    .update({ status: "on_hold" })
+    .eq("booking_id", bookingId)
+    .in("status", ["pending", "processing"]);
+  if (error) throw new AppError("INTERNAL", "Could not hold the payout.", { cause: error });
+}
+
+/** Withholds the payout when the customer is refunded. */
+export async function withholdPayout(bookingId: string, reason: string): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("payouts")
+    .update({ status: "failed", failure_reason: reason })
+    .eq("booking_id", bookingId)
+    .in("status", ["pending", "processing", "on_hold"]);
+  if (error) throw new AppError("INTERNAL", "Could not withhold the payout.", { cause: error });
+}

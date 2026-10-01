@@ -94,6 +94,7 @@ Migrations live in `supabase/migrations` and run in order:
 | `customer_platform`      | Approved-only search, public reviews, booking counterpart names   |
 | `business_status_values` | Business statuses: pending, under review                          |
 | `business_onboarding`    | Status flow, add-ons, booking settings, verification requests     |
+| `admin_dashboard`        | Admin statistics (server only) and dispute outcomes               |
 
 Money is stored as whole kobo (`bigint`), never as decimals.
 
@@ -240,6 +241,33 @@ suspended → under review. Only the server changes a status, after checking the
   documents through short-lived links, requests more information, accepts or rejects documents and
   approves, rejects, suspends or reinstates the business. Every decision is logged and the owner is
   notified.
+
+## Admin dashboard
+
+Lives at the private admin link only (see above). Every page checks the admin role on the server,
+and the statistics function can only be called by the server, never from a browser.
+
+| Page       | What admins do there                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| Overview   | Key numbers, revenue chart, most popular categories, services and businesses       |
+| Providers  | Review, approve, reject, suspend and reactivate providers; set a custom commission |
+| Bookings   | Find any booking; mark it completed or cancel it with a reason                     |
+| Disputes   | Settle problems reported by customers or businesses                                |
+| Reviews    | Hide reviews that break the guidelines (they stop counting towards ratings)        |
+| Users      | Search people, suspend or reactivate accounts                                      |
+| Categories | Add, edit, hide or delete marketplace categories                                   |
+| Commission | Set the platform commission for new bookings                                       |
+| Audit log  | Every admin action, who took it and why; entries can't be edited or deleted        |
+
+- **Disputes.** Customers and businesses can report a problem on a paid booking, or up to 14 days
+  after it's completed. The booking becomes "In dispute" and the business's payout is held. An admin
+  then sides with the business (booking completed, payout released), refunds the customer (booking
+  cancelled, payout withheld, refund recorded as due) or dismisses it (booking goes back to where it
+  was). Actual refunds are paid in the payments stage.
+- **Revenue** is what customers paid, less refunds. **Platform fees** are the commission on
+  payouts plus any service fees. Each booking keeps the commission rate it was made at.
+- **Suspending a business owner** also takes their live business off the marketplace. Admins can't
+  change their own account status.
 
 ## Error handling
 

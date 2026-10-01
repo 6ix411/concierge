@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { FilterTabs, PageHeader } from "@/components/admin/dashboard-widgets";
+import { SearchForm } from "@/components/admin/search-form";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { Container } from "@/components/layout/container";
 import { EmptyState } from "@/components/ui";
 import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
@@ -10,7 +11,6 @@ import { businessStatusInfo, type BusinessStatus } from "@/lib/business/status";
 import { AppError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils/cn";
 
 export const metadata: Metadata = { title: "Businesses" };
 
@@ -20,48 +20,51 @@ const filters: { key: string; label: string; statuses: BusinessStatus[] }[] = [
   { key: "rejected", label: "Rejected", statuses: ["rejected"] },
   { key: "suspended", label: "Suspended", statuses: ["suspended"] },
   { key: "draft", label: "Not submitted", statuses: ["draft"] },
+  {
+    key: "all",
+    label: "All",
+    statuses: ["pending", "under_review", "approved", "rejected", "suspended", "draft"],
+  },
 ];
 
 export default async function AdminBusinessesPage({ searchParams }: PageProps<"/admin/businesses">) {
   await requireAreaAccess("admin");
-  const { status } = await searchParams;
+  const { status, q } = await searchParams;
   const filter = filters.find((f) => f.key === status) ?? filters[0]!;
+  const search = typeof q === "string" ? q.trim().slice(0, 80) : "";
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("businesses")
     .select(
       "id, name, city, state, status, submitted_at, created_at, primary_category:service_categories(name)",
     )
-    .in("status", filter.statuses)
+    .in("status", filter.statuses);
+  if (search) query = query.ilike("name", `%${search.replace(/[%_\\]/g, "")}%`);
+  const { data, error } = await query
     .order("submitted_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
     .limit(100);
   if (error) throw new AppError("INTERNAL", "Could not load businesses.", { cause: error });
 
   return (
-    <Container className="flex flex-col gap-6 py-8">
-      <div>
-        <Link href={adminHref()} className="text-sm text-muted hover:underline">
-          Admin
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Businesses</h1>
-      </div>
-      <nav aria-label="Filter businesses" className="-mx-4 flex gap-1 overflow-x-auto px-4">
-        {filters.map((f) => (
-          <Link
-            key={f.key}
-            href={adminHref(`/businesses?status=${f.key}`)}
-            aria-current={f.key === filter.key ? "page" : undefined}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap",
-              f.key === filter.key ? "bg-brand text-brand-foreground" : "text-muted hover:bg-surface-muted",
-            )}
-          >
-            {f.label}
-          </Link>
-        ))}
-      </nav>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Providers"
+        description="Review registrations, and approve, reject, suspend or reactivate providers."
+      />
+      <FilterTabs
+        label="Filter providers"
+        current={filter.key}
+        tabs={filters.map((f) => ({
+          key: f.key,
+          label: f.label,
+          href: adminHref(`/businesses?status=${f.key}`),
+        }))}
+      />
+      <SearchForm action={adminHref("/businesses")} defaultValue={search} label="Search providers by name">
+        <input type="hidden" name="status" value={filter.key} />
+      </SearchForm>
       {(data ?? []).length > 0 ? (
         <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
           {(data ?? []).map((business) => (
@@ -89,7 +92,9 @@ export default async function AdminBusinessesPage({ searchParams }: PageProps<"/
           ))}
         </ul>
       ) : (
-        <EmptyState title={`No ${filter.label.toLowerCase()} businesses`} />
+        <EmptyState
+          title={search ? "No providers match your search" : `No ${filter.label.toLowerCase()} providers`}
+        />
       )}
       <p className="text-xs text-muted">
         Statuses:{" "}
@@ -98,6 +103,6 @@ export default async function AdminBusinessesPage({ searchParams }: PageProps<"/
           .join(", ")}
         .
       </p>
-    </Container>
+    </div>
   );
 }
