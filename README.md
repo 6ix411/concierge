@@ -197,6 +197,19 @@ update public.users set role = 'admin' where email = 'you@example.com';
 - **Chat.** Opens when a booking is confirmed and is only between the customer and the business.
   Messages arrive live through Supabase Realtime. The AI never reads, writes or summarises chat.
 
+### Provider results and business profiles
+
+Every place a provider is listed (search, category pages, concierge replies) uses the same card:
+name, verified badge, rating and review count, price range for the matching services, areas served
+and completed bookings, with **View profile**, **Compare** and **Book**.
+
+The profile at `/businesses/[slug]` shows the logo, verification, description, location and service
+areas, a facts strip (rating, completed bookings, price range, base), services, packages, add-ons,
+portfolio, reviews with a 5-to-1 star breakdown, and availability (working hours, notice, how far
+ahead it books, upcoming days off). Completed bookings, the price range and the star breakdown come
+from `get_business_stats`, which only answers for approved businesses. Nothing on a card or profile
+is typed in by hand: it all comes from the database.
+
 ## Business platform
 
 Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register

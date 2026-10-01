@@ -53,6 +53,7 @@ export class Facts {
   addMatch(match: Match, date: string | null) {
     const fact = this.provider(match);
     if (match.min_price_minor !== null) fact.prices.add(match.min_price_minor);
+    if (match.max_price_minor !== null) fact.prices.add(match.max_price_minor);
     this.matches.set(match.id, match);
     if (date) this.datesChecked.add(date);
   }

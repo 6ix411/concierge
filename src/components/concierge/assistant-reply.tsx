@@ -122,28 +122,7 @@ function ProviderCards({ providers }: { providers: Recommendation[] }) {
     <ol className="flex flex-col gap-3">
       {providers.map((business) => (
         <li key={business.id}>
-          <BusinessCard
-            business={business}
-            action={
-              <>
-                <LinkButton href={`/businesses/${business.slug}`} variant="outline" size="sm">
-                  View profile
-                </LinkButton>
-                <LinkButton href={`/book/${business.slug}`} size="sm">
-                  Book
-                </LinkButton>
-                <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-muted">
-                  <input
-                    type="checkbox"
-                    name="ids"
-                    value={business.slug}
-                    className="size-4 accent-foreground"
-                  />
-                  Compare
-                </label>
-              </>
-            }
-          >
+          <BusinessCard business={business}>
             <MatchReasons reasons={business.reasons} />
           </BusinessCard>
         </li>

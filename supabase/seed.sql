@@ -204,6 +204,10 @@ from public.businesses b, generate_series(1, 6) d;
 insert into public.business_availability (business_id, day_of_week, start_time, end_time)
 select id, 0, '12:00', '22:00' from public.businesses
 where slug in ('lush-events-decor', 'royal-touch-decorations', 'mama-put-catering', 'lens-and-light', 'glow-studio-makeup');
+-- Lens & Light has two days off coming up (shown on its profile).
+insert into public.business_availability (business_id, specific_date, is_available)
+values ('c0000000-0000-0000-0000-000000000007', current_date + 12, false),
+       ('c0000000-0000-0000-0000-000000000007', current_date + 26, false);
 
 -- ---------------------------------------------------------------------------
 -- Past bookings with reviews, so ratings and reviews show up.

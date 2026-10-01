@@ -17,6 +17,13 @@ export function formatNairaShort(amountMinor: number): string {
   return formatNaira(amountMinor);
 }
 
+/** "₦250,000–₦300,000", or one price when the range is a single figure. Null when nothing is priced. */
+export function formatPriceRange(minMinor: number | null, maxMinor: number | null): string | null {
+  if (minMinor === null) return null;
+  if (maxMinor === null || maxMinor <= minMinor) return formatNaira(minMinor);
+  return `${formatNaira(minMinor)}–${formatNaira(maxMinor)}`;
+}
+
 function trim(value: number): string {
   return value.toFixed(value < 10 ? 1 : 0).replace(/\.0$/, "");
 }

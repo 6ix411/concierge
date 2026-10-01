@@ -1315,6 +1315,16 @@ export type Database = {
           id: string;
         }[];
       };
+      get_business_stats: {
+        Args: { p_business_id: string };
+        Returns: {
+          completed_bookings: number;
+          has_quote_only: boolean;
+          max_price_minor: number;
+          min_price_minor: number;
+          rating_breakdown: number[];
+        }[];
+      };
       get_public_reviews: {
         Args: { p_business_id: string; p_limit?: number; p_offset?: number };
         Returns: {
@@ -1372,6 +1382,7 @@ export type Database = {
           location_match: string;
           logo_path: string;
           matched_services: string[];
+          max_price_minor: number;
           min_price_minor: number;
           name: string;
           rating_avg: number;
