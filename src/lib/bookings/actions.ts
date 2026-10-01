@@ -148,11 +148,13 @@ export async function createBookingAction(
     const end = new Date(start.getTime() + duration * 60_000);
 
     const admin = createAdminClient();
-    const [{ data: private_ }, { data: setting }] = await Promise.all([
-      admin.from("businesses").select("owner_id, commission_rate_bps").eq("id", business.id).single(),
-      admin.from("platform_settings").select("value").eq("key", "default_commission_rate_bps").maybeSingle(),
+    // The commission is whatever an admin has set: the business's custom rate or the platform rate.
+    const [{ data: private_ }, { data: commission, error: commissionError }] = await Promise.all([
+      admin.from("businesses").select("owner_id").eq("id", business.id).single(),
+      admin.rpc("current_commission_rate_bps", { p_business_id: business.id }),
     ]);
-    const commission = private_?.commission_rate_bps ?? Number(setting?.value ?? 1000);
+    if (commissionError || commission === null)
+      throw new AppError("INTERNAL", "The platform commission isn't set.", { cause: commissionError });
 
     // The booking and its items are created together, then sent to the business.
     const { data: created, error: createError } = await admin

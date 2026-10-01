@@ -27,7 +27,7 @@ import {
 } from "@/lib/bookings/rules";
 import { formatBookingLocation, itemKindLabels } from "@/lib/bookings/workflow";
 import { addDays, lagosToday, toLagosParts } from "@/lib/dates";
-import { formatDateTime, formatNaira } from "@/lib/format";
+import { formatDate, formatDateTime, formatNaira } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Booking" };
 
@@ -63,6 +63,7 @@ export default async function BookingDetailPage({
         : null;
   const notice = noticeKey ? notices[noticeKey] : undefined;
   const paid = booking.payments.some((p) => p.status === "success" || p.status === "refunded");
+  const refundPending = booking.payments.some((p) => p.refund_status === "pending");
   const refundDue = booking.status === "cancelled" ? amountPaid(booking.payments) : 0;
   const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const today = lagosToday();
@@ -95,7 +96,9 @@ export default async function BookingDetailPage({
         <BookingProgress status={booking.status} reached={reached} />
         {refundDue > 0 && (
           <FormMessage tone="success">
-            {formatNaira(refundDue)} is due back to you. We’ll let you know when the refund is sent.
+            {refundPending
+              ? `${formatNaira(refundDue)} is on its way back to you. Banks can take a few working days.`
+              : `${formatNaira(refundDue)} is due back to you. We’ll let you know when the refund is sent.`}
           </FormMessage>
         )}
 
@@ -158,9 +161,20 @@ export default async function BookingDetailPage({
             </span>
             <span>{booking.total_minor > 0 ? formatNaira(booking.total_minor) : "To be quoted"}</span>
           </div>
-          {paid && (
-            <p className="text-verified">{booking.status === "refunded" ? "Paid, then refunded" : "Paid"}</p>
-          )}
+          {booking.payments
+            .filter(
+              (p) => p.status === "success" || p.status === "refunded" || p.status === "partially_refunded",
+            )
+            .map((payment) => (
+              <p key={payment.id} className="text-verified">
+                {payment.status === "success" ? "Paid" : "Paid, then refunded"}
+                {payment.paid_at && ` ${formatDate(payment.paid_at)}`}
+                <span className="block text-xs text-muted">
+                  Payment reference {payment.reference}
+                  {payment.refund_status === "pending" && " · refund on its way"}
+                </span>
+              </p>
+            ))}
         </section>
 
         {booking.reviews && (

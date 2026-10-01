@@ -11,12 +11,13 @@ import { toFormError } from "@/lib/business/action-utils";
 import { AppError } from "@/lib/errors";
 import { formatNaira } from "@/lib/format";
 import { notify } from "@/lib/notifications";
+import { markBookingRefunded, refundPayment } from "@/lib/payments/refunds";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { adminBookingActions, amountPaid, type AdminBookingAction } from "./rules";
 import { bookingAdminSchema } from "./schemas";
 
-/** Complete, cancel or record a refund for a booking on behalf of the platform. Logged, and both sides are notified. */
+/** Complete, cancel or refund a booking on behalf of the platform. Logged, and both sides are notified. */
 export async function adminBookingAction(
   action: AdminBookingAction,
   _prev: FormState,
@@ -38,7 +39,7 @@ export async function adminBookingAction(
     const { data: booking } = await db
       .from("bookings")
       .select(
-        "id, reference, status, customer_id, business_id, total_minor, commission_rate_bps, businesses(owner_id), payments(id, status, amount_minor, refunded_minor)",
+        "id, reference, status, customer_id, business_id, total_minor, commission_rate_bps, businesses(owner_id), payments(id, reference, provider, provider_reference, status, amount_minor, refunded_minor, refund_status)",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -50,16 +51,27 @@ export async function adminBookingAction(
     const paid = amountPaid(booking.payments);
     if (action === "refund") {
       if (paid <= 0) throw new AppError("CONFLICT", "There's nothing left to refund on this booking.");
-      // The refund is sent from the payment provider's dashboard; this records that it was made.
+      // The payment provider sends the money back. Some refunds finish later; the webhook completes those.
+      let pending = false;
       for (const payment of booking.payments) {
         if (payment.status !== "success" && payment.status !== "partially_refunded") continue;
-        const { error: refundError } = await db
-          .from("payments")
-          .update({ status: "refunded", refunded_minor: payment.amount_minor })
-          .eq("id", payment.id);
-        if (refundError)
-          throw new AppError("INTERNAL", "Could not record the refund.", { cause: refundError });
+        if ((await refundPayment(payment)) === "pending") pending = true;
       }
+      await recordAdminAction(admin, {
+        action: "booking.refund",
+        targetType: "bookings",
+        targetId: booking.id,
+        reason,
+        metadata: { reference: booking.reference, refundedMinor: paid, pending },
+      });
+      if (pending) {
+        message = `Refund of ${formatNaira(paid)} requested. The booking moves to refunded once the payment provider confirms it.`;
+      } else {
+        await markBookingRefunded(booking.id, admin.id);
+        message = `${formatNaira(paid)} refunded to the customer.`;
+      }
+      refresh();
+      return { status: "success", message };
     }
 
     await moveBooking({
@@ -67,7 +79,6 @@ export async function adminBookingAction(
       from: booking.status,
       to: rule.to,
       actorId: admin.id,
-      note: action === "refund" ? `${formatNaira(paid)} refunded${reason ? `: ${reason}` : ""}` : null,
       changes:
         action === "cancel" ? { cancelled_by: admin.id, cancellation_reason: reason ?? null } : undefined,
     });
@@ -84,7 +95,6 @@ export async function adminBookingAction(
         reference: booking.reference,
         from: booking.status,
         refundDueMinor: action === "cancel" ? paid : 0,
-        refundedMinor: action === "refund" ? paid : 0,
       },
     });
 
@@ -98,10 +108,6 @@ export async function adminBookingAction(
         title: "Booking completed",
         body: `${booking.reference} was marked as completed by the Concierge team.`,
       },
-      refund: {
-        title: "Refund sent",
-        body: `${formatNaira(paid)} for ${booking.reference} has been refunded to you.`,
-      },
     }[action];
     await notify(
       {
@@ -110,13 +116,12 @@ export async function adminBookingAction(
         ...messages,
         data: { bookingId: booking.id },
       },
-      ...(ownerId && action !== "refund"
+      ...(ownerId
         ? [{ userId: ownerId, type: `booking.admin_${action}`, ...messages, data: { bookingId: booking.id } }]
         : []),
     );
     if (action === "cancel" && paid > 0)
       message = `Booking cancelled. ${formatNaira(paid)} is due back to the customer.`;
-    if (action === "refund") message = `Refund of ${formatNaira(paid)} recorded.`;
   } catch (error) {
     return toFormError(error, "We couldn't update the booking. Please try again.");
   }

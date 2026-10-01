@@ -9,6 +9,8 @@ const links = [
   { path: "", label: "Overview" },
   { path: "/businesses", label: "Providers" },
   { path: "/bookings", label: "Bookings" },
+  { path: "/payments", label: "Payments" },
+  { path: "/payouts", label: "Payouts" },
   { path: "/disputes", label: "Disputes" },
   { path: "/reviews", label: "Reviews" },
   { path: "/users", label: "Users" },

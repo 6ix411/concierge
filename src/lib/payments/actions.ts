@@ -21,7 +21,7 @@ export async function startCheckoutAction(bookingId: string, _prev: CheckoutStat
     const supabase = await createClient();
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, status, scheduled_start, total_minor")
+      .select("id, status, scheduled_start, total_minor, business_id, commission_rate_bps")
       .eq("id", bookingId)
       .eq("customer_id", customer.id)
       .maybeSingle();

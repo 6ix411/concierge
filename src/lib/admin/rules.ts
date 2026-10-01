@@ -26,7 +26,7 @@ export const adminBookingActions: Record<
     to: "cancelled",
     label: "Cancel booking",
   },
-  refund: { from: ["cancelled"], to: "refunded", label: "Record refund" },
+  refund: { from: ["cancelled"], to: "refunded", label: "Refund customer" },
 };
 
 /** Refunds only apply to cancelled bookings with money still owed back to the customer. */
@@ -91,7 +91,7 @@ export const disputeOutcomes: Record<
   customer: {
     label: "Refund the customer",
     description:
-      "The booking is cancelled and the payout is withheld. Record the refund once the money is back with the customer.",
+      "The booking is cancelled and the payout is withheld. Then refund the customer from the booking page.",
     disputeStatus: "resolved",
   },
   dismissed: {
@@ -196,7 +196,9 @@ const auditLabels: Record<string, string> = {
   "verification.reject": "Rejected a verification document",
   "booking.complete": "Marked a booking completed",
   "booking.cancel": "Cancelled a booking",
-  "booking.refund": "Recorded a refund",
+  "booking.refund": "Refunded a customer",
+  "payout.send": "Sent a payout",
+  "payout.send_all": "Sent all ready payouts",
   "dispute.start_review": "Started reviewing a dispute",
   "dispute.business": "Resolved a dispute for the business",
   "dispute.customer": "Resolved a dispute for the customer",

@@ -411,6 +411,63 @@ export type Database = {
           },
         ];
       };
+      business_payout_accounts: {
+        Row: {
+          account_name: string;
+          account_number: string;
+          bank_code: string;
+          bank_name: string;
+          business_id: string;
+          created_at: string;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          recipient_code: string | null;
+          updated_at: string;
+          updated_by: string | null;
+          verified_at: string;
+        };
+        Insert: {
+          account_name: string;
+          account_number: string;
+          bank_code: string;
+          bank_name: string;
+          business_id: string;
+          created_at?: string;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          recipient_code?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          verified_at?: string;
+        };
+        Update: {
+          account_name?: string;
+          account_number?: string;
+          bank_code?: string;
+          bank_name?: string;
+          business_id?: string;
+          created_at?: string;
+          provider?: Database["public"]["Enums"]["payment_provider"];
+          recipient_code?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          verified_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "business_payout_accounts_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: true;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "business_payout_accounts_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       business_portfolio: {
         Row: {
           business_id: string;
@@ -976,20 +1033,64 @@ export type Database = {
           },
         ];
       };
+      payment_webhook_events: {
+        Row: {
+          body_hash: string;
+          created_at: string;
+          error: string | null;
+          event: string;
+          id: string;
+          payload: NonNullable<Json>;
+          processed_at: string | null;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          reference: string | null;
+        };
+        Insert: {
+          body_hash: string;
+          created_at?: string;
+          error?: string | null;
+          event: string;
+          id?: string;
+          payload: NonNullable<Json>;
+          processed_at?: string | null;
+          provider: Database["public"]["Enums"]["payment_provider"];
+          reference?: string | null;
+        };
+        Update: {
+          body_hash?: string;
+          created_at?: string;
+          error?: string | null;
+          event?: string;
+          id?: string;
+          payload?: NonNullable<Json>;
+          processed_at?: string | null;
+          provider?: Database["public"]["Enums"]["payment_provider"];
+          reference?: string | null;
+        };
+        Relationships: [];
+      };
       payments: {
         Row: {
           amount_minor: number;
           booking_id: string;
+          business_id: string;
+          channel: string | null;
+          commission_rate_bps: number;
           created_at: string;
           currency: string;
           failure_reason: string | null;
           id: string;
           paid_at: string | null;
           payer_id: string;
+          platform_fee_minor: number;
           provider: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_minor: number;
           provider_payload: Json | null;
           provider_reference: string | null;
           reference: string;
+          refund_reference: string | null;
+          refund_status: string | null;
+          refunded_at: string | null;
           refunded_minor: number;
           status: Database["public"]["Enums"]["payment_status"];
           updated_at: string;
@@ -997,16 +1098,24 @@ export type Database = {
         Insert: {
           amount_minor: number;
           booking_id: string;
+          business_id: string;
+          channel?: string | null;
+          commission_rate_bps: number;
           created_at?: string;
           currency?: string;
           failure_reason?: string | null;
           id?: string;
           paid_at?: string | null;
           payer_id: string;
+          platform_fee_minor?: number;
           provider: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_minor?: number;
           provider_payload?: Json | null;
           provider_reference?: string | null;
           reference: string;
+          refund_reference?: string | null;
+          refund_status?: string | null;
+          refunded_at?: string | null;
           refunded_minor?: number;
           status?: Database["public"]["Enums"]["payment_status"];
           updated_at?: string;
@@ -1014,16 +1123,24 @@ export type Database = {
         Update: {
           amount_minor?: number;
           booking_id?: string;
+          business_id?: string;
+          channel?: string | null;
+          commission_rate_bps?: number;
           created_at?: string;
           currency?: string;
           failure_reason?: string | null;
           id?: string;
           paid_at?: string | null;
           payer_id?: string;
+          platform_fee_minor?: number;
           provider?: Database["public"]["Enums"]["payment_provider"];
+          provider_amount_minor?: number;
           provider_payload?: Json | null;
           provider_reference?: string | null;
           reference?: string;
+          refund_reference?: string | null;
+          refund_status?: string | null;
+          refunded_at?: string | null;
           refunded_minor?: number;
           status?: Database["public"]["Enums"]["payment_status"];
           updated_at?: string;
@@ -1037,6 +1154,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "payments_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "payments_payer_id_fkey";
             columns: ["payer_id"];
             isOneToOne: false;
@@ -1047,7 +1171,10 @@ export type Database = {
       };
       payouts: {
         Row: {
+          account_number_last4: string | null;
           amount_minor: number;
+          attempts: number;
+          bank_name: string | null;
           booking_id: string | null;
           business_id: string;
           commission_minor: number;
@@ -1057,13 +1184,19 @@ export type Database = {
           gross_minor: number;
           id: string;
           paid_at: string | null;
+          payment_id: string | null;
           provider: Database["public"]["Enums"]["payment_provider"] | null;
           provider_reference: string | null;
+          reference: string | null;
+          sent_at: string | null;
           status: Database["public"]["Enums"]["payout_status"];
           updated_at: string;
         };
         Insert: {
+          account_number_last4?: string | null;
           amount_minor: number;
+          attempts?: number;
+          bank_name?: string | null;
           booking_id?: string | null;
           business_id: string;
           commission_minor: number;
@@ -1073,13 +1206,19 @@ export type Database = {
           gross_minor: number;
           id?: string;
           paid_at?: string | null;
+          payment_id?: string | null;
           provider?: Database["public"]["Enums"]["payment_provider"] | null;
           provider_reference?: string | null;
+          reference?: string | null;
+          sent_at?: string | null;
           status?: Database["public"]["Enums"]["payout_status"];
           updated_at?: string;
         };
         Update: {
+          account_number_last4?: string | null;
           amount_minor?: number;
+          attempts?: number;
+          bank_name?: string | null;
           booking_id?: string | null;
           business_id?: string;
           commission_minor?: number;
@@ -1089,8 +1228,11 @@ export type Database = {
           gross_minor?: number;
           id?: string;
           paid_at?: string | null;
+          payment_id?: string | null;
           provider?: Database["public"]["Enums"]["payment_provider"] | null;
           provider_reference?: string | null;
+          reference?: string | null;
+          sent_at?: string | null;
           status?: Database["public"]["Enums"]["payout_status"];
           updated_at?: string;
         };
@@ -1107,6 +1249,13 @@ export type Database = {
             columns: ["business_id"];
             isOneToOne: false;
             referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payouts_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "payments";
             referencedColumns: ["id"];
           },
         ];
@@ -1389,6 +1538,7 @@ export type Database = {
           reference: string;
         }[];
       };
+      current_commission_rate_bps: { Args: { p_business_id: string }; Returns: number };
       current_user_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];

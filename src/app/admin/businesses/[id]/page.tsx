@@ -86,7 +86,7 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
       db.from("platform_settings").select("value").eq("key", COMMISSION_SETTING).maybeSingle(),
       db.from("bookings").select("id", { count: "exact", head: true }).eq("business_id", id),
     ]);
-  const platformBps = Number(setting.data?.value ?? 1000);
+  const platformBps = Number(setting.data?.value);
 
   const paths = (documents.data ?? []).map((d) => d.document_path);
   const signed = new Map<string, string>();

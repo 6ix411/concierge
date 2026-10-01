@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Records what the business is owed for a completed booking: the total minus the platform's commission.
- * Safe to call twice: a booking only ever has one payout. Paying it out happens in the payments stage.
+ * Safe to call twice: a booking only ever has one payout. An admin sends it to the business's bank account (src/lib/payments/payouts.ts).
  */
 export async function recordPayout(booking: {
   id: string;
@@ -24,13 +24,23 @@ export async function recordPayout(booking: {
     .select("id");
   if (held?.length) return;
 
-  const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
+  // The split recorded on the customer's payment decides the payout; older bookings fall back to the booking's rate.
+  const { data: payment } = await db
+    .from("payments")
+    .select("id, amount_minor, platform_fee_minor, provider_amount_minor")
+    .eq("booking_id", booking.id)
+    .eq("status", "success")
+    .maybeSingle();
+  const gross = payment?.amount_minor ?? booking.total_minor;
+  const commission =
+    payment?.platform_fee_minor ?? commissionFor(booking.total_minor, booking.commission_rate_bps);
   const { error } = await db.from("payouts").insert({
     business_id: booking.business_id,
     booking_id: booking.id,
-    gross_minor: booking.total_minor,
+    payment_id: payment?.id ?? null,
+    gross_minor: gross,
     commission_minor: commission,
-    amount_minor: booking.total_minor - commission,
+    amount_minor: payment?.provider_amount_minor ?? gross - commission,
   });
   // 23505: a payout already exists for this booking.
   if (error && error.code !== "23505")
