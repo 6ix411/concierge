@@ -775,6 +775,120 @@ export type Database = {
           },
         ];
       };
+      chat_reports: {
+        Row: {
+          conversation_id: string;
+          created_at: string;
+          details: string | null;
+          id: string;
+          message_id: string | null;
+          reason: Database["public"]["Enums"]["chat_report_reason"];
+          reported_user_id: string;
+          reporter_id: string;
+          resolution: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: Database["public"]["Enums"]["chat_report_status"];
+        };
+        Insert: {
+          conversation_id: string;
+          created_at?: string;
+          details?: string | null;
+          id?: string;
+          message_id?: string | null;
+          reason: Database["public"]["Enums"]["chat_report_reason"];
+          reported_user_id: string;
+          reporter_id: string;
+          resolution?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["chat_report_status"];
+        };
+        Update: {
+          conversation_id?: string;
+          created_at?: string;
+          details?: string | null;
+          id?: string;
+          message_id?: string | null;
+          reason?: Database["public"]["Enums"]["chat_report_reason"];
+          reported_user_id?: string;
+          reporter_id?: string;
+          resolution?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["chat_report_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "chat_reports_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chat_reports_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chat_reports_reported_user_id_fkey";
+            columns: ["reported_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chat_reports_reporter_id_fkey";
+            columns: ["reporter_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "chat_reports_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversation_reads: {
+        Row: {
+          conversation_id: string;
+          last_read_at: string;
+          user_id: string;
+        };
+        Insert: {
+          conversation_id: string;
+          last_read_at?: string;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string;
+          last_read_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_reads_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_reads_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversations: {
         Row: {
           booking_id: string;
@@ -943,7 +1057,9 @@ export type Database = {
       };
       messages: {
         Row: {
+          attachment_name: string | null;
           attachment_path: string | null;
+          attachment_size: number | null;
           attachment_type: string | null;
           body: string | null;
           conversation_id: string;
@@ -954,7 +1070,9 @@ export type Database = {
           sender_id: string;
         };
         Insert: {
+          attachment_name?: string | null;
           attachment_path?: string | null;
+          attachment_size?: number | null;
           attachment_type?: string | null;
           body?: string | null;
           conversation_id: string;
@@ -965,7 +1083,9 @@ export type Database = {
           sender_id: string;
         };
         Update: {
+          attachment_name?: string | null;
           attachment_path?: string | null;
+          attachment_size?: number | null;
           attachment_type?: string | null;
           body?: string | null;
           conversation_id?: string;
@@ -1438,6 +1558,49 @@ export type Database = {
           },
         ];
       };
+      user_blocks: {
+        Row: {
+          blocked_id: string;
+          blocker_id: string;
+          conversation_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          blocked_id: string;
+          blocker_id: string;
+          conversation_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          blocked_id?: string;
+          blocker_id?: string;
+          conversation_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_blocks_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       users: {
         Row: {
           avatar_path: string | null;
@@ -1531,6 +1694,7 @@ export type Database = {
     };
     Functions: {
       admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
+      conversation_counterpart: { Args: { p_conversation_id: string; p_user_id: string }; Returns: string };
       create_booking: {
         Args: { p_booking: Json; p_items: Json };
         Returns: {
@@ -1585,6 +1749,7 @@ export type Database = {
         };
         Returns: boolean;
       };
+      mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
       match_businesses: {
         Args: {
           p_area?: string;
@@ -1653,6 +1818,8 @@ export type Database = {
         | "disputed"
         | "refunded";
       business_status: "draft" | "pending" | "under_review" | "approved" | "rejected" | "suspended";
+      chat_report_reason: "harassment" | "spam" | "scam" | "off_platform_payment" | "inappropriate" | "other";
+      chat_report_status: "open" | "actioned" | "dismissed";
       conversation_status: "open" | "closed" | "locked";
       dispute_status: "open" | "under_review" | "resolved" | "rejected";
       payment_provider: "paystack" | "flutterwave" | "mock";
@@ -1806,6 +1973,8 @@ export const Constants = {
         "refunded",
       ],
       business_status: ["draft", "pending", "under_review", "approved", "rejected", "suspended"],
+      chat_report_reason: ["harassment", "spam", "scam", "off_platform_payment", "inappropriate", "other"],
+      chat_report_status: ["open", "actioned", "dismissed"],
       conversation_status: ["open", "closed", "locked"],
       dispute_status: ["open", "under_review", "resolved", "rejected"],
       payment_provider: ["paystack", "flutterwave", "mock"],

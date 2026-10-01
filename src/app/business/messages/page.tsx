@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { EmptyState } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { requireOwnBusiness } from "@/lib/business/queries";
 import { listBusinessConversations } from "@/lib/chat/queries";
 import { formatDateTime, initials } from "@/lib/format";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Messages" };
 
 export default async function BusinessMessagesPage() {
   const { user, business } = await requireOwnBusiness();
-  const conversations = await listBusinessConversations(business.id);
+  const conversations = await listBusinessConversations(business.id, user.id);
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,7 +38,10 @@ export default async function BusinessMessagesPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-medium">{conversation.customerName}</p>
+                      <p className="flex min-w-0 items-center gap-2 font-medium">
+                        <span className="truncate">{conversation.customerName}</span>
+                        {conversation.unread && <Badge tone="accent">New</Badge>}
+                      </p>
                       {last && (
                         <span className="shrink-0 text-xs text-muted">{formatDateTime(last.created_at)}</span>
                       )}

@@ -29,7 +29,7 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
        opener:users!disputes_opened_by_fkey(id, full_name, email, role),
        resolver:users!disputes_resolved_by_fkey(full_name),
        booking:bookings(id, reference, status, scheduled_start, total_minor, completed_at,
-         business:businesses(id, name), customer:users!bookings_customer_id_fkey(id, full_name, email),
+         business:businesses(id, name), customer:users!bookings_customer_id_fkey(id, full_name, email), conversations(id),
          payments(status, amount_minor, refunded_minor), payouts(status, amount_minor))`,
     )
     .eq("id", id)
@@ -78,6 +78,20 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
               </Link>
               <BookingStatusBadge status={booking.status} />
             </dd>
+            {booking.conversations && (
+              <>
+                <dt className="text-muted">Chat</dt>
+                <dd>
+                  <Link
+                    href={adminHref(`/conversations/${booking.conversations.id}`)}
+                    className="font-medium hover:underline"
+                  >
+                    Read the chat
+                  </Link>
+                  <span className="block text-xs text-muted">Opening it is recorded in the audit log.</span>
+                </dd>
+              </>
+            )}
             <dt className="text-muted">Business</dt>
             <dd>
               <Link href={adminHref(`/businesses/${booking.business?.id}`)} className="hover:underline">

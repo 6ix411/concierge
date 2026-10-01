@@ -14,10 +14,12 @@ import { onboardingProgress, type OnboardingSnapshot } from "./onboarding";
 const BUSINESS_COLUMNS =
   "id, owner_id, name, slug, description, primary_category_id, email, phone, website, address_line, city, state, logo_path, cover_path, status, is_verified, verified_at, rating_avg, rating_count, accepting_bookings, min_notice_hours, booking_window_days, max_bookings_per_day, submitted_at, reviewed_at, created_at";
 
-/** The signed-in owner's business (row level security limits this to their own), or null. */
+/**
+ * The signed-in owner's business, or null. Callers pass the session user's id. Read with the service
+ * role because the business's phone and email aren't readable by clients (kept private by default).
+ */
 export const getOwnBusiness = cache(async (ownerId: string) => {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from("businesses")
     .select(BUSINESS_COLUMNS)
     .eq("owner_id", ownerId)

@@ -293,6 +293,32 @@ transfers must be enabled on the account and funded from the balance.
   booking to `refunded` then.
 - **Admin pages:** **Payments** (every payment with its split, filters and totals) and **Payouts**.
 
+## Customer–business chat
+
+When a booking is **confirmed** (paid), a private chat opens between the customer and the business,
+linked to that booking. It is strictly human to human: the AI concierge has no access to it and
+never answers, suggests, negotiates, summarises, translates or sends anything there (a unit test
+fails if any concierge file references the chat tables). The platform only provides the channel.
+
+- **Booking card** at the top: booking number and status, customer, business, service, date and
+  place.
+- **Real-time text, photos, videos and files** (images, MP4/MOV/WebM, PDF, Word, Excel, text; up to
+  50 MB) in a private storage bucket only the two participants (and admins, when allowed) can read.
+- **Timestamps and read receipts** ("Sent" / "Seen", live) via `conversation_reads`.
+- **Notifications:** one "new message" notification per chat (never containing the text), cleared
+  when the chat is read; inboxes show a "New" badge.
+- **Report a message or the person** (`chat_reports`); the Concierge team is notified.
+- **Block:** either side can block the other; neither can send until it's lifted. Admins can
+  **restrict** a chat (read-only for both sides).
+- **Private contact details:** business phone numbers and emails are no longer readable through the
+  API, and the chat reminds people to keep talking and paying on Concierge when they type a phone
+  number or email (messages are never changed).
+- **Admin access when required:** an admin can open a chat only when its booking has a dispute or the
+  chat has a report; every visit is logged in the audit log. From there they can hide a message,
+  restrict the chat and close reports (private admin link, `/reports`).
+- Database rules enforce it: only the customer and the business owner can send, even with full
+  database access; blocked or restricted chats refuse messages; senders can't set moderation flags.
+
 ## Business platform
 
 Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register
