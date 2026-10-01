@@ -10,12 +10,13 @@ import { recordPayout, withholdPayout } from "@/lib/bookings/payouts";
 import { moveBooking } from "@/lib/bookings/transitions";
 import { toFormError } from "@/lib/business/action-utils";
 import { AppError } from "@/lib/errors";
+import { readEvidence, saveEvidence } from "@/lib/disputes/evidence";
 import { formatNaira } from "@/lib/format";
 import { notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { bookingStatusAfterDispute, disputeOutcomes, type DisputeOutcome } from "./rules";
-import { disputeResolveSchema } from "./schemas";
+import { disputeEscalateSchema, disputeMessageSchema, disputeResolveSchema } from "./schemas";
 
 async function loadDispute(disputeId: string) {
   const { data } = await createAdminClient()
@@ -39,7 +40,7 @@ export async function startDisputeReviewAction(_prev: FormState, formData: FormD
       throw new AppError("CONFLICT", "This dispute changed. Refresh to see the latest.");
     const { data } = await createAdminClient()
       .from("disputes")
-      .update({ status: "under_review" })
+      .update({ status: "under_review", change_actor_id: admin.id, change_note: null })
       .eq("id", dispute.id)
       .eq("status", "open")
       .select("id");
@@ -73,7 +74,7 @@ export async function resolveDisputeAction(
     if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
     const dispute = await loadDispute(parsed.data.disputeId);
     const { booking } = dispute;
-    if (!["open", "under_review"].includes(dispute.status) || booking.status !== "disputed")
+    if (!["open", "under_review", "escalated"].includes(dispute.status) || booking.status !== "disputed")
       throw new AppError("CONFLICT", "This dispute changed. Refresh to see the latest.");
 
     const db = createAdminClient();
@@ -106,8 +107,11 @@ export async function resolveDisputeAction(
         resolved_by: admin.id,
         resolved_at: new Date().toISOString(),
         refund_due_minor: refundDue,
+        change_actor_id: admin.id,
+        change_note: parsed.data.resolution,
       })
-      .eq("id", dispute.id);
+      .eq("id", dispute.id)
+      .in("status", ["open", "under_review", "escalated"]);
     if (error) throw new AppError("INTERNAL", "Could not close the dispute.", { cause: error });
 
     await recordAdminAction(admin, {
@@ -137,4 +141,125 @@ export async function resolveDisputeAction(
   }
   refresh();
   return { status: "success", message };
+}
+
+/** Both parties of a dispute, for notifications. */
+function partiesOf(booking: { customer_id: string; businesses: { owner_id: string } | null }): string[] {
+  return [booking.customer_id, booking.businesses?.owner_id].filter((id): id is string => Boolean(id));
+}
+
+/**
+ * Escalates a dispute that needs a senior decision or outside action (the payment provider, legal).
+ * Both sides are told it's escalated; the reason stays with the Concierge team.
+ */
+export async function escalateDisputeAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  try {
+    const admin = await requireRole("admin");
+    const parsed = disputeEscalateSchema.safeParse({
+      disputeId: formData.get("disputeId"),
+      reason: formData.get("reason"),
+    });
+    if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const dispute = await loadDispute(parsed.data.disputeId);
+    const db = createAdminClient();
+    const { data } = await db
+      .from("disputes")
+      .update({
+        status: "escalated",
+        escalated_at: new Date().toISOString(),
+        escalation_reason: parsed.data.reason,
+        change_actor_id: admin.id,
+        change_note: parsed.data.reason,
+      })
+      .eq("id", dispute.id)
+      .in("status", ["open", "under_review"])
+      .select("id");
+    if (!data?.length) throw new AppError("CONFLICT", "This dispute changed. Refresh to see the latest.");
+    await recordAdminAction(admin, {
+      action: "dispute.escalate",
+      targetType: "disputes",
+      targetId: dispute.id,
+      reason: parsed.data.reason,
+      metadata: { reference: dispute.booking.reference },
+    });
+    const { data: admins } = await db.from("users").select("id").eq("role", "admin").eq("status", "active");
+    await notify(
+      ...partiesOf(dispute.booking).map((userId) => ({
+        userId,
+        type: "dispute.escalated",
+        title: `Dispute on ${dispute.booking.reference} escalated`,
+        body: "It has gone to a senior member of the Concierge team. It may take a little longer to settle.",
+        data: { bookingId: dispute.booking.id },
+      })),
+      ...(admins ?? [])
+        .filter((a) => a.id !== admin.id)
+        .map((a) => ({
+          userId: a.id,
+          type: "dispute.escalated",
+          title: `Dispute ${dispute.booking.reference} escalated`,
+          body: parsed.data.reason,
+          data: { disputeId: dispute.id },
+        })),
+    );
+  } catch (error) {
+    return toFormError(error, "We couldn't escalate the dispute. Please try again.");
+  }
+  refresh();
+  return { status: "success", message: "Escalated." };
+}
+
+/**
+ * A message from the Concierge team in the dispute thread, with optional files. An internal note is
+ * seen by admins only.
+ */
+export async function adminDisputeMessageAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  let internal = false;
+  try {
+    const admin = await requireRole("admin");
+    const parsed = disputeMessageSchema.safeParse({
+      disputeId: formData.get("disputeId"),
+      body: formData.get("body") ?? "",
+    });
+    if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
+    internal = formData.get("internal") === "on";
+    const dispute = await loadDispute(parsed.data.disputeId);
+    const files = await readEvidence(formData);
+    if (!parsed.data.body && files.length === 0)
+      return { status: "error", fieldErrors: { body: "Write a message or add a file." } };
+    if (internal && files.length > 0)
+      return { status: "error", message: "Internal notes can't carry files: both sides see every file." };
+
+    const db = createAdminClient();
+    let messageId: string | null = null;
+    if (parsed.data.body) {
+      const { data, error } = await db
+        .from("dispute_messages")
+        .insert({
+          dispute_id: dispute.id,
+          sender_id: admin.id,
+          sender_role: "admin",
+          body: parsed.data.body,
+          internal,
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw new AppError("INTERNAL", "Could not send the message.", { cause: error });
+      messageId = data.id;
+    }
+    await saveEvidence(dispute.id, { id: admin.id, role: "admin" }, files, messageId);
+    if (!internal)
+      await notify(
+        ...partiesOf(dispute.booking).map((userId) => ({
+          userId,
+          type: "dispute.message",
+          title: `The Concierge team wrote about ${dispute.booking.reference}`,
+          body: "Open the dispute to read it.",
+          data: { bookingId: dispute.booking.id },
+        })),
+      );
+  } catch (error) {
+    return toFormError(error, "We couldn't send that. Please try again.");
+  }
+  refresh();
+  return { status: "success", message: internal ? "Note saved." : "Sent to both sides." };
 }

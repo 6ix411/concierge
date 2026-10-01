@@ -982,16 +982,181 @@ export type Database = {
           },
         ];
       };
+      dispute_events: {
+        Row: {
+          actor_id: string | null;
+          actor_role: string | null;
+          created_at: string;
+          dispute_id: string;
+          event: string;
+          from_status: Database["public"]["Enums"]["dispute_status"] | null;
+          id: string;
+          internal: boolean;
+          note: string | null;
+          to_status: Database["public"]["Enums"]["dispute_status"] | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          actor_role?: string | null;
+          created_at?: string;
+          dispute_id: string;
+          event: string;
+          from_status?: Database["public"]["Enums"]["dispute_status"] | null;
+          id?: string;
+          internal?: boolean;
+          note?: string | null;
+          to_status?: Database["public"]["Enums"]["dispute_status"] | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_role?: string | null;
+          created_at?: string;
+          dispute_id?: string;
+          event?: string;
+          from_status?: Database["public"]["Enums"]["dispute_status"] | null;
+          id?: string;
+          internal?: boolean;
+          note?: string | null;
+          to_status?: Database["public"]["Enums"]["dispute_status"] | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dispute_events_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispute_events_dispute_id_fkey";
+            columns: ["dispute_id"];
+            isOneToOne: false;
+            referencedRelation: "disputes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      dispute_evidence: {
+        Row: {
+          created_at: string;
+          dispute_id: string;
+          file_name: string;
+          id: string;
+          message_id: string | null;
+          mime_type: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_by: string;
+          uploader_role: string;
+        };
+        Insert: {
+          created_at?: string;
+          dispute_id: string;
+          file_name: string;
+          id?: string;
+          message_id?: string | null;
+          mime_type: string;
+          size_bytes: number;
+          storage_path: string;
+          uploaded_by: string;
+          uploader_role: string;
+        };
+        Update: {
+          created_at?: string;
+          dispute_id?: string;
+          file_name?: string;
+          id?: string;
+          message_id?: string | null;
+          mime_type?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          uploaded_by?: string;
+          uploader_role?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dispute_evidence_dispute_id_fkey";
+            columns: ["dispute_id"];
+            isOneToOne: false;
+            referencedRelation: "disputes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispute_evidence_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "dispute_messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispute_evidence_uploaded_by_fkey";
+            columns: ["uploaded_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      dispute_messages: {
+        Row: {
+          body: string;
+          created_at: string;
+          dispute_id: string;
+          id: string;
+          internal: boolean;
+          sender_id: string;
+          sender_role: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          dispute_id: string;
+          id?: string;
+          internal?: boolean;
+          sender_id: string;
+          sender_role: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          dispute_id?: string;
+          id?: string;
+          internal?: boolean;
+          sender_id?: string;
+          sender_role?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dispute_messages_dispute_id_fkey";
+            columns: ["dispute_id"];
+            isOneToOne: false;
+            referencedRelation: "disputes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispute_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       disputes: {
         Row: {
           booking_id: string;
+          change_actor_id: string | null;
+          change_note: string | null;
           created_at: string;
           description: string | null;
+          escalated_at: string | null;
+          escalation_reason: string | null;
           id: string;
           opened_by: string;
           outcome: string | null;
           previous_booking_status: Database["public"]["Enums"]["booking_status"] | null;
           reason: string;
+          reason_code: string;
           refund_due_minor: number;
           resolution: string | null;
           resolved_at: string | null;
@@ -1001,13 +1166,18 @@ export type Database = {
         };
         Insert: {
           booking_id: string;
+          change_actor_id?: string | null;
+          change_note?: string | null;
           created_at?: string;
           description?: string | null;
+          escalated_at?: string | null;
+          escalation_reason?: string | null;
           id?: string;
           opened_by: string;
           outcome?: string | null;
           previous_booking_status?: Database["public"]["Enums"]["booking_status"] | null;
           reason: string;
+          reason_code?: string;
           refund_due_minor?: number;
           resolution?: string | null;
           resolved_at?: string | null;
@@ -1017,13 +1187,18 @@ export type Database = {
         };
         Update: {
           booking_id?: string;
+          change_actor_id?: string | null;
+          change_note?: string | null;
           created_at?: string;
           description?: string | null;
+          escalated_at?: string | null;
+          escalation_reason?: string | null;
           id?: string;
           opened_by?: string;
           outcome?: string | null;
           previous_booking_status?: Database["public"]["Enums"]["booking_status"] | null;
           reason?: string;
+          reason_code?: string;
           refund_due_minor?: number;
           resolution?: string | null;
           resolved_at?: string | null;
@@ -1037,6 +1212,13 @@ export type Database = {
             columns: ["booking_id"];
             isOneToOne: false;
             referencedRelation: "bookings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "disputes_change_actor_id_fkey";
+            columns: ["change_actor_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
           {
@@ -1745,6 +1927,7 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
       };
+      dispute_actor_role: { Args: { p_dispute_id: string; p_user: string }; Returns: string };
       get_booking_counterparts: {
         Args: { user_ids: string[] };
         Returns: {
@@ -1781,10 +1964,21 @@ export type Database = {
       is_booking_participant: { Args: { target_booking_id: string }; Returns: boolean };
       is_business_public: { Args: { target_business_id: string }; Returns: boolean };
       is_conversation_participant: { Args: { target_conversation_id: string }; Returns: boolean };
+      is_dispute_active: {
+        Args: { p_status: Database["public"]["Enums"]["dispute_status"] };
+        Returns: boolean;
+      };
       is_valid_booking_transition: {
         Args: {
           from_status: Database["public"]["Enums"]["booking_status"];
           to_status: Database["public"]["Enums"]["booking_status"];
+        };
+        Returns: boolean;
+      };
+      is_valid_dispute_transition: {
+        Args: {
+          from_status: Database["public"]["Enums"]["dispute_status"];
+          to_status: Database["public"]["Enums"]["dispute_status"];
         };
         Returns: boolean;
       };
@@ -1860,7 +2054,7 @@ export type Database = {
       chat_report_reason: "harassment" | "spam" | "scam" | "off_platform_payment" | "inappropriate" | "other";
       chat_report_status: "open" | "actioned" | "dismissed";
       conversation_status: "open" | "closed" | "locked";
-      dispute_status: "open" | "under_review" | "resolved" | "rejected";
+      dispute_status: "open" | "under_review" | "escalated" | "resolved" | "closed";
       payment_provider: "paystack" | "flutterwave" | "mock";
       payment_status: "pending" | "success" | "failed" | "abandoned" | "refunded" | "partially_refunded";
       payout_status: "pending" | "processing" | "paid" | "failed" | "on_hold";
@@ -2015,7 +2209,7 @@ export const Constants = {
       chat_report_reason: ["harassment", "spam", "scam", "off_platform_payment", "inappropriate", "other"],
       chat_report_status: ["open", "actioned", "dismissed"],
       conversation_status: ["open", "closed", "locked"],
-      dispute_status: ["open", "under_review", "resolved", "rejected"],
+      dispute_status: ["open", "under_review", "escalated", "resolved", "closed"],
       payment_provider: ["paystack", "flutterwave", "mock"],
       payment_status: ["pending", "success", "failed", "abandoned", "refunded", "partially_refunded"],
       payout_status: ["pending", "processing", "paid", "failed", "on_hold"],

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { percentToBps } from "./rules";
+import { disputeReasons, percentToBps, type DisputeReason } from "./rules";
 
 const optionalText = (max: number) =>
   z
@@ -23,12 +23,33 @@ export const bookingAdminSchema = z.object({
 
 export const disputeOpenSchema = z.object({
   bookingId: z.guid(),
+  reasonCode: z.enum(Object.keys(disputeReasons) as [DisputeReason, ...DisputeReason[]], {
+    error: "Choose what the problem is.",
+  }),
   reason: z
-    .string({ error: "Say what went wrong." })
+    .string({ error: "Sum up the problem in a few words." })
     .trim()
-    .min(3, "Say what went wrong.")
+    .min(3, "Sum up the problem in a few words.")
     .max(200, "Keep the summary under 200 characters."),
-  description: optionalText(5000),
+  description: z
+    .string({ error: "Describe what happened." })
+    .trim()
+    .min(20, "Describe what happened, in a few sentences.")
+    .max(5000, "Keep it under 5000 characters."),
+});
+
+export const disputeMessageSchema = z.object({
+  disputeId: z.guid(),
+  body: z.string().trim().max(5000, "Keep it under 5000 characters.").default(""),
+});
+
+export const disputeEscalateSchema = z.object({
+  disputeId: z.guid(),
+  reason: z
+    .string({ error: "Say why it's escalated." })
+    .trim()
+    .min(3, "Say why it's escalated. Both sides are told it's escalated, not why.")
+    .max(1000),
 });
 
 export const disputeResolveSchema = z.object({

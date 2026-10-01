@@ -40,10 +40,17 @@ describe("disputes", () => {
     expect(bookingStatusAfterDispute("dismissed", null)).toBe("completed");
   });
 
-  it("needs a short summary of the problem", () => {
-    const bookingId = "6f8e2b1a-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
-    expect(disputeOpenSchema.safeParse({ bookingId, reason: "  " }).success).toBe(false);
-    expect(disputeOpenSchema.safeParse({ bookingId, reason: "Job not finished" }).success).toBe(true);
+  it("needs a reason, a short summary and a description", () => {
+    const valid = {
+      bookingId: "6f8e2b1a-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+      reasonCode: "not_delivered",
+      reason: "Job not finished",
+      description: "The plumber left after an hour and the sink still leaks.",
+    };
+    expect(disputeOpenSchema.safeParse(valid).success).toBe(true);
+    expect(disputeOpenSchema.safeParse({ ...valid, reason: "  " }).success).toBe(false);
+    expect(disputeOpenSchema.safeParse({ ...valid, reasonCode: "made_up" }).success).toBe(false);
+    expect(disputeOpenSchema.safeParse({ ...valid, description: "Bad." }).success).toBe(false);
   });
 });
 
