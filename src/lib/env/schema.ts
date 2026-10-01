@@ -34,6 +34,8 @@ export const serverEnvSchema = publicEnvSchema
     PAYSTACK_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_WEBHOOK_HASH: z.string().optional(),
+    // Lets a scheduler call /api/notifications/dispatch (email/SMS/push). Unset: the route is off.
+    CRON_SECRET: z.string().min(32, "Use at least 32 characters (e.g. openssl rand -hex 32)").optional(),
     // Private URL segment for the admin dashboard. Generate with: openssl rand -hex 16
     ADMIN_PATH: z
       .string()

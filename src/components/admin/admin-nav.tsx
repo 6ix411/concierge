@@ -18,6 +18,7 @@ const links = [
   { path: "/categories", label: "Categories" },
   { path: "/commission", label: "Commission" },
   { path: "/audit", label: "Audit log" },
+  { path: "/notifications", label: "Notifications" },
 ];
 
 /** `base` is the private admin path. The browser may show it or the internal /admin path. */

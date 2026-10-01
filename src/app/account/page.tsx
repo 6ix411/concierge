@@ -5,10 +5,10 @@ import Link from "next/link";
 import { BookingList } from "@/components/bookings/booking-list";
 import { ConciergeBox } from "@/components/concierge/concierge-box";
 import { Button, EmptyState } from "@/components/ui";
-import { markNotificationsReadAction } from "@/lib/account/actions";
+import { NotificationList } from "@/components/notifications/notification-list";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { listCustomerBookings } from "@/lib/bookings/queries";
-import { formatDateTime } from "@/lib/format";
+import { markAllNotificationsReadAction } from "@/lib/notifications/actions";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "My account" };
@@ -20,7 +20,7 @@ export default async function AccountPage() {
     listCustomerBookings(user.id, "upcoming"),
     supabase
       .from("notifications")
-      .select("id, title, body, created_at, read_at, data")
+      .select("id, category, title, body, created_at, read_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5),
@@ -49,46 +49,20 @@ export default async function AccountPage() {
                 </span>
               )}
             </h2>
-            {unread.length > 0 && (
-              <form action={markNotificationsReadAction}>
-                <Button type="submit" variant="ghost" size="sm">
-                  Mark all read
-                </Button>
-              </form>
-            )}
+            <div className="flex items-center gap-1">
+              {unread.length > 0 && (
+                <form action={markAllNotificationsReadAction}>
+                  <Button type="submit" variant="ghost" size="sm">
+                    Mark all read
+                  </Button>
+                </form>
+              )}
+              <Link href="/notifications" className="text-sm font-medium text-muted hover:underline">
+                See all
+              </Link>
+            </div>
           </div>
-          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
-            {notifications.map((n) => {
-              const bookingId =
-                n.data &&
-                typeof n.data === "object" &&
-                !Array.isArray(n.data) &&
-                typeof n.data.bookingId === "string"
-                  ? n.data.bookingId
-                  : null;
-              const content = (
-                <>
-                  <p className={n.read_at ? "text-sm" : "text-sm font-semibold"}>{n.title}</p>
-                  {n.body && <p className="text-sm text-muted">{n.body}</p>}
-                  <p className="text-xs text-muted">{formatDateTime(n.created_at)}</p>
-                </>
-              );
-              return (
-                <li key={n.id}>
-                  {bookingId ? (
-                    <Link
-                      href={`/account/bookings/${bookingId}`}
-                      className="block p-4 hover:bg-surface-muted"
-                    >
-                      {content}
-                    </Link>
-                  ) : (
-                    <div className="p-4">{content}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <NotificationList notifications={notifications} />
         </section>
       )}
 

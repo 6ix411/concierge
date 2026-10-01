@@ -97,14 +97,3 @@ export async function changePasswordAction(_prev: FormState, formData: FormData)
   }
   return { status: "success", message: "Password changed." };
 }
-
-export async function markNotificationsReadAction(): Promise<void> {
-  const user = await requireUser();
-  const supabase = await createClient();
-  await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("user_id", user.id)
-    .is("read_at", null);
-  refresh();
-}
