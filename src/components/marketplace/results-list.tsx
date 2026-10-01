@@ -1,18 +1,26 @@
 import { BusinessCard } from "@/components/marketplace/business-card";
 import { Button, EmptyState, LinkButton } from "@/components/ui";
+import { MatchReasons } from "@/components/marketplace/match-reasons";
 import type { SearchResult } from "@/lib/marketplace/queries";
 import { PAGE_SIZE } from "@/lib/marketplace/search-params";
+import { explainMatch, type MatchNeeds } from "@/lib/matching/explain";
+
+const needKinds = new Set(["location", "availability", "price", "guests"]);
 
 /** Results with compare checkboxes and simple pagination links. */
 export function ResultsList({
   results,
   page,
   pageHref,
+  needs,
 }: {
   results: SearchResult[];
   page: number;
   pageHref: (page: number) => string;
+  /** What the customer filtered on; each result then says whether it fits. */
+  needs?: MatchNeeds;
 }) {
+  const explain = Boolean(needs && (needs.location || needs.date || needs.guests || needs.budgetMinor));
   const hasMore = results.length > PAGE_SIZE;
   const visible = results.slice(0, PAGE_SIZE);
 
@@ -51,6 +59,11 @@ export function ResultsList({
             >
               {business.matched_services && business.matched_services.length > 0 && (
                 <p className="line-clamp-1 text-sm text-muted">{business.matched_services.join(" · ")}</p>
+              )}
+              {explain && needs && (
+                <MatchReasons
+                  reasons={explainMatch(business, needs).filter((reason) => needKinds.has(reason.kind))}
+                />
               )}
             </BusinessCard>
           </li>

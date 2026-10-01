@@ -185,9 +185,9 @@ update public.users set role = 'admin' where email = 'you@example.com';
 | My bookings, messages, reviews | `/account/bookings`, `/account/messages`, `/account/reviews` |
 | Account and settings           | `/account`, `/account/settings`                              |
 
-- **Concierge.** Reads the request (service, area, guests, budget) and ranks only approved
-  businesses from our own database through `search_businesses`. It never searches the web. Until
-  the AI stage it uses rule-based matching (`src/lib/concierge`), so it works without an API key.
+- **Concierge.** Turns the request into structured details and matches them with the search and
+  matching engine below. It never searches the web. Until the AI stage it reads requests with rules
+  (`src/lib/matching/request.ts`), so it works without an API key.
 - **Bookings.** Prices always come from the database, never the form. A booking moves
   `requested → accepted → confirmed` (paid) `→ in_progress → completed`; quote requests go through
   `quote_requested → quoted → accepted` first. Customers can cancel before paying, or up to 24 hours
@@ -241,6 +241,43 @@ suspended → under review. Only the server changes a status, after checking the
   documents through short-lived links, requests more information, accepts or rejects documents and
   approves, rejects, suspends or reinstates the business. Every decision is logged and the owner is
   notified.
+
+## Search and matching engine
+
+Search, category pages, the homepage and the concierge all go through one database function,
+`match_businesses` (called from `src/lib/matching/engine.ts`). It only searches businesses registered
+on Concierge, never Google or outside directories.
+
+**Who can be returned.** A business must be approved and verified, accepting bookings, owned by an
+active account, and offer at least one active service (add-ons don't count). Anyone else is never
+returned, whatever the search.
+
+**Reading a request.** `parseServiceRequest` turns plain language into structured details:
+
+> "I need a photographer for a birthday in Victoria Island next Saturday. About 100 people. Budget ₦300k."
+>
+> Category: Photography & video · Event: Birthday · Location: Victoria Island, Lagos · Date: the
+> Saturday of next week · Guests: 100 · Budget: ₦300,000
+
+"This Saturday" is the coming Saturday; "next Saturday" is the Saturday of next week. Dates in the
+past are ignored.
+
+**Ranking (0 to 100).**
+
+| Part         | Points | How                                                                           |
+| ------------ | ------ | ----------------------------------------------------------------------------- |
+| Relevance    | 30     | Right category, and services matching the words used                          |
+| Location     | 20     | Serves the exact area 20, whole city 15, whole state 10, elsewhere in state 4 |
+| Availability | 15     | Working that day and time, notice period, booking window, daily limit         |
+| Price        | 15     | Lowest matching price within budget; falls the further over it is             |
+| Rating       | 10     | Average rating, pulled towards 4.0 when there are few reviews                 |
+| Track record | 5      | Completed bookings on Concierge                                               |
+| Verified     | 5      | Verified by our team                                                          |
+| Group size   | −10    | When the largest "up to N guests" service is too small                        |
+
+Businesses in another state are never matched. Those that miss something (nearby area, busy that
+day, over budget, too small) still show as "close options", each saying what doesn't fit. The search
+page's max budget is a hard filter; the concierge's budget only ranks.
 
 ## Admin dashboard
 

@@ -3,36 +3,41 @@ import "server-only";
 import { cache } from "react";
 
 import { AppError } from "@/lib/errors";
+import { findMatches } from "@/lib/matching/engine";
+import type { Match } from "@/lib/matching/types";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
-export type SearchResult = Database["public"]["Functions"]["search_businesses"]["Returns"][number];
+export type SearchResult = Match;
 export type PublicReview = Database["public"]["Functions"]["get_public_reviews"]["Returns"][number];
 
 export type SearchParams = {
   query?: string | null;
   category?: string | null;
   location?: string | null;
+  /** YYYY-MM-DD: ranks businesses free that day first and says who isn't. */
+  date?: string | null;
+  guests?: number | null;
   maxPriceMinor?: number | null;
   sort?: "relevance" | "rating" | "price_low" | "price_high";
   limit?: number;
   offset?: number;
 };
 
-/** Searches approved businesses only (enforced in the database). */
+/** Searches eligible businesses on the platform only (enforced in the database by the matching engine). */
 export async function searchBusinesses(params: SearchParams): Promise<SearchResult[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("search_businesses", {
-    p_query: params.query || undefined,
-    p_category: params.category || undefined,
-    p_location: params.location || undefined,
-    p_max_price_minor: params.maxPriceMinor ?? undefined,
-    p_sort: params.sort ?? "relevance",
-    p_limit: params.limit ?? 20,
-    p_offset: params.offset ?? 0,
+  return findMatches({
+    query: params.query,
+    category: params.category,
+    location: params.location,
+    date: params.date,
+    guests: params.guests,
+    budgetMinor: params.maxPriceMinor,
+    maxPriceMinor: params.maxPriceMinor,
+    sort: !params.sort || params.sort === "relevance" ? "match" : params.sort,
+    limit: params.limit,
+    offset: params.offset,
   });
-  if (error) throw new AppError("INTERNAL", "Search is unavailable right now.", { cause: error });
-  return data ?? [];
 }
 
 export type Category = {

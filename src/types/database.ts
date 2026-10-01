@@ -1339,36 +1339,51 @@ export type Database = {
         };
         Returns: boolean;
       };
-      owns_business: { Args: { target_business_id: string }; Returns: boolean };
-      search_businesses: {
+      match_businesses: {
         Args: {
+          p_area?: string;
+          p_budget_minor?: number;
           p_category?: string;
+          p_city?: string;
+          p_date?: string;
+          p_guests?: number;
           p_limit?: number;
-          p_location?: string;
           p_max_price_minor?: number;
           p_offset?: number;
           p_query?: string;
           p_sort?: string;
+          p_state?: string;
+          p_time?: string;
         };
         Returns: {
+          availability: string;
+          availability_note: string;
           category_name: string;
           city: string;
+          completed_bookings: number;
           cover_path: string;
           description: string;
+          fits_guests: boolean;
+          guest_capacity: number;
+          has_quote_only: boolean;
           id: string;
           is_verified: boolean;
+          location_match: string;
           logo_path: string;
           matched_services: string[];
           min_price_minor: number;
           name: string;
           rating_avg: number;
           rating_count: number;
-          relevance: number;
+          score: number;
+          score_parts: Json;
           served_areas: string[];
           slug: string;
           state: string;
+          within_budget: boolean;
         }[];
       };
+      owns_business: { Args: { target_business_id: string }; Returns: boolean };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };
     Enums: {

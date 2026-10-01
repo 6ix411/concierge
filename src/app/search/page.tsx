@@ -33,11 +33,24 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
           q: params.query ?? undefined,
           category: params.category ?? undefined,
           location: params.location ?? undefined,
+          date: params.date ?? undefined,
+          guests: params.guests ? String(params.guests) : undefined,
           max: params.maxNaira,
           sort: params.sort,
         }}
       />
-      <ResultsList results={results} page={params.page} pageHref={pageHref} />
+      <ResultsList
+        results={results}
+        page={params.page}
+        pageHref={pageHref}
+        needs={{
+          location: params.location ?? null,
+          date: params.date ?? null,
+          time: null,
+          guests: params.guests ?? null,
+          budgetMinor: params.maxPriceMinor ?? null,
+        }}
+      />
     </Container>
   );
 }
