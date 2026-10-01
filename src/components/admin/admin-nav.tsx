@@ -12,6 +12,7 @@ const links = [
   { path: "/payments", label: "Payments" },
   { path: "/payouts", label: "Payouts" },
   { path: "/disputes", label: "Disputes" },
+  { path: "/reports", label: "Chat reports" },
   { path: "/reviews", label: "Reviews" },
   { path: "/users", label: "Users" },
   { path: "/categories", label: "Categories" },

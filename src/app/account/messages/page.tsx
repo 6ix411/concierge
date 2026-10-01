@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BusinessAvatar } from "@/components/marketplace/business-avatar";
-import { EmptyState } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { listCustomerConversations } from "@/lib/chat/queries";
 import { formatDateTime } from "@/lib/format";
@@ -38,7 +38,10 @@ export default async function MessagesPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-medium">{conversation.businesses?.name}</p>
+                      <p className="flex min-w-0 items-center gap-2 font-medium">
+                        <span className="truncate">{conversation.businesses?.name}</span>
+                        {conversation.unread && <Badge tone="accent">New</Badge>}
+                      </p>
                       {last && (
                         <span className="shrink-0 text-xs text-muted">{formatDateTime(last.created_at)}</span>
                       )}
