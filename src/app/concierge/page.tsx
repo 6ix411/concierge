@@ -1,12 +1,13 @@
-import { Check, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 
 import { ConciergeBox } from "@/components/concierge/concierge-box";
 import { Container } from "@/components/layout/container";
 import { BusinessCard } from "@/components/marketplace/business-card";
-import { Badge, Button, EmptyState, LinkButton } from "@/components/ui";
-import { matchProviders } from "@/lib/concierge/match";
-import { formatNairaShort } from "@/lib/format";
+import { MatchReasons } from "@/components/marketplace/match-reasons";
+import { Button, EmptyState, LinkButton } from "@/components/ui";
+import { matchProviders, type Recommendation } from "@/lib/concierge/match";
+import { describeRequest } from "@/lib/matching/explain";
 
 export const metadata: Metadata = { title: "Concierge" };
 
@@ -30,13 +31,9 @@ export default async function ConciergePage({ searchParams }: PageProps<"/concie
     );
   }
 
-  const { intent, recommendations, relaxed } = await matchProviders(query);
-  const understood = [
-    intent.categoryLabel,
-    intent.location,
-    intent.guests ? `${intent.guests} guests` : null,
-    intent.budgetMinor ? `Budget ${formatNairaShort(intent.budgetMinor)}` : null,
-  ].filter((value): value is string => Boolean(value));
+  const { request, recommendations, alternatives, notes } = await matchProviders(query);
+  const understood = describeRequest(request);
+  const found = recommendations.length;
 
   return (
     <Container className="flex max-w-3xl flex-col gap-6 py-6 sm:py-10">
@@ -52,28 +49,27 @@ export default async function ConciergePage({ searchParams }: PageProps<"/concie
             <Sparkles aria-hidden className="size-4" />
           </span>
           <div className="flex flex-col gap-2 pt-1">
-            {recommendations.length > 0 ? (
-              <p className="leading-relaxed">
-                {recommendations.length === 1
-                  ? "I found one verified provider that fits."
-                  : `I found ${recommendations.length} verified providers that fit.`}{" "}
-                Compare them below, or refine your request.
-              </p>
-            ) : (
-              <p className="leading-relaxed">
-                I couldn’t find a verified provider for that yet. Try different words, a nearby area, or
-                browse all services.
-              </p>
-            )}
+            <p className="leading-relaxed">
+              {found > 0
+                ? `${found === 1 ? "I found one verified provider" : `I found ${found} verified providers`} that fit${alternatives.length > 0 ? ", plus a few close options" : ""}. Compare them below, or refine your request.`
+                : alternatives.length > 0
+                  ? "Nobody fits every detail yet, but these verified providers come close."
+                  : "I couldn’t find a verified provider for that yet. Try different words, a nearby area, or browse all services."}
+            </p>
             {understood.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-muted">I understood:</span>
-                {understood.map((item) => (
-                  <Badge key={item}>{item}</Badge>
-                ))}
+              <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
+                <p className="text-xs font-medium text-muted">Here’s what I understood</p>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                  {understood.map((row) => (
+                    <div key={row.label} className="contents">
+                      <dt className="text-muted">{row.label}</dt>
+                      <dd className="font-medium">{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             )}
-            {relaxed.map((note) => (
+            {notes.map((note) => (
               <p key={note} className="text-sm text-muted">
                 {note}
               </p>
@@ -81,55 +77,19 @@ export default async function ConciergePage({ searchParams }: PageProps<"/concie
           </div>
         </div>
 
-        {recommendations.length > 0 ? (
+        {found + alternatives.length > 0 ? (
           <form action="/compare" className="flex flex-col gap-3">
-            <ol className="flex flex-col gap-3">
-              {recommendations.map((business) => (
-                <li key={business.id}>
-                  <BusinessCard
-                    business={business}
-                    action={
-                      <>
-                        <LinkButton href={`/businesses/${business.slug}`} variant="outline" size="sm">
-                          View profile
-                        </LinkButton>
-                        <LinkButton href={`/book/${business.slug}`} size="sm">
-                          Book
-                        </LinkButton>
-                        <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            name="ids"
-                            value={business.slug}
-                            className="size-4 accent-foreground"
-                          />
-                          Compare
-                        </label>
-                      </>
-                    }
-                  >
-                    {business.reasons.length > 0 && (
-                      <ul className="flex flex-col gap-1">
-                        {business.reasons.map((reason) => (
-                          <li key={reason} className="flex items-start gap-2 text-sm">
-                            <Check
-                              aria-hidden
-                              className={
-                                reason.includes("above your budget")
-                                  ? "mt-0.5 size-4 shrink-0 text-muted"
-                                  : "mt-0.5 size-4 shrink-0 text-verified"
-                              }
-                            />
-                            {reason}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </BusinessCard>
-                </li>
-              ))}
-            </ol>
-            {recommendations.length > 1 && (
+            {found > 0 && <MatchList items={recommendations} />}
+            {alternatives.length > 0 && (
+              <>
+                <h2 className="mt-2 text-sm font-semibold">
+                  {found > 0 ? "Close options" : "Closest options"}
+                  <span className="font-normal text-muted"> · each misses something you asked for</span>
+                </h2>
+                <MatchList items={alternatives} />
+              </>
+            )}
+            {found + alternatives.length > 1 && (
               <Button type="submit" variant="outline" className="self-start">
                 Compare selected
               </Button>
@@ -152,5 +112,40 @@ export default async function ConciergePage({ searchParams }: PageProps<"/concie
         <ConciergeBox defaultValue={query} compact showExamples={false} />
       </div>
     </Container>
+  );
+}
+
+function MatchList({ items }: { items: Recommendation[] }) {
+  return (
+    <ol className="flex flex-col gap-3">
+      {items.map((business) => (
+        <li key={business.id}>
+          <BusinessCard
+            business={business}
+            action={
+              <>
+                <LinkButton href={`/businesses/${business.slug}`} variant="outline" size="sm">
+                  View profile
+                </LinkButton>
+                <LinkButton href={`/book/${business.slug}`} size="sm">
+                  Book
+                </LinkButton>
+                <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-muted">
+                  <input
+                    type="checkbox"
+                    name="ids"
+                    value={business.slug}
+                    className="size-4 accent-foreground"
+                  />
+                  Compare
+                </label>
+              </>
+            }
+          >
+            <MatchReasons reasons={business.reasons} />
+          </BusinessCard>
+        </li>
+      ))}
+    </ol>
   );
 }

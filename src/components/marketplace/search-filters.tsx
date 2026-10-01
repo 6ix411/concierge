@@ -11,12 +11,20 @@ export function SearchFilters({
   hideCategory = false,
 }: {
   categories: CategoryTree[];
-  values: { q?: string; category?: string; location?: string; max?: string; sort?: string };
+  values: {
+    q?: string;
+    category?: string;
+    location?: string;
+    date?: string;
+    guests?: string;
+    max?: string;
+    sort?: string;
+  };
   action?: string;
   hideCategory?: boolean;
 }) {
   return (
-    <Form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+    <Form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
       <div className="sm:col-span-2 lg:col-span-2">
         <Input label="Service" name="q" placeholder="e.g. wedding photographer" defaultValue={values.q} />
       </div>
@@ -36,6 +44,14 @@ export function SearchFilters({
           ))}
         </Select>
       )}
+      <Input label="Date" name="date" type="date" defaultValue={values.date} />
+      <Input
+        label="Guests"
+        name="guests"
+        inputMode="numeric"
+        placeholder="Any"
+        defaultValue={values.guests}
+      />
       <Input
         label="Max budget (₦)"
         name="max"
@@ -50,7 +66,7 @@ export function SearchFilters({
           </option>
         ))}
       </Select>
-      <Button type="submit" className="sm:col-span-2 lg:col-span-1">
+      <Button type="submit" className="sm:col-span-2 lg:col-span-1 lg:col-start-4">
         Search
       </Button>
     </Form>

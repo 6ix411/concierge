@@ -322,3 +322,74 @@ $$;
 select pg_temp.open_booking('a0000000-0000-0000-0000-000000000003', 'mama-put-catering', 'Wedding Catering (per 100 guests)', 21, 'confirmed');
 select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'royal-touch-decorations', 'White Wedding Reception Decor', 30, 'requested');
 select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'glow-studio-makeup', 'Bridal Makeup + Gele', 14, 'cancelled');
+
+-- ---------------------------------------------------------------------------
+-- More photographers, so matching has choices to rank. Two of them must never be recommended:
+-- one has paused bookings and one is still waiting for review.
+-- ---------------------------------------------------------------------------
+select pg_temp.demo_user('b0000000-0000-0000-0000-000000000010', 'snapshot@demo.ng', 'Tunde Bakare', 'business');
+select pg_temp.demo_user('b0000000-0000-0000-0000-000000000011', 'kemi@demo.ng', 'Kemi Adeyemi', 'business');
+select pg_temp.demo_user('b0000000-0000-0000-0000-000000000012', 'paused@demo.ng', 'Paused Owner', 'business');
+select pg_temp.demo_user('b0000000-0000-0000-0000-000000000013', 'pixels@demo.ng', 'Pending Pixels Owner', 'business');
+
+insert into public.businesses (id, owner_id, name, slug, description, primary_category_id, phone, email,
+  address_line, city, state, status, is_verified, verified_at, accepting_bookings)
+select v.id::uuid, v.owner::uuid, v.name, v.slug, v.description, c.id, v.phone, v.email, v.address, v.city, 'Lagos',
+  v.status::public.business_status, v.status = 'approved', case when v.status = 'approved' then now() end, v.accepting
+from (values
+  ('c0000000-0000-0000-0000-000000000010', 'b0000000-0000-0000-0000-000000000010', 'Snapshot Studios', 'snapshot-studios',
+   'Event photography on the Island: birthdays, parties, launches and corporate events. Same-week edited gallery.',
+   '+2348030000010', 'hello@snapshot.ng', '7 Akin Adesola St', 'Victoria Island', 'approved', true),
+  ('c0000000-0000-0000-0000-000000000011', 'b0000000-0000-0000-0000-000000000011', 'Frames by Kemi', 'frames-by-kemi',
+   'Relaxed, candid photography for birthdays, family portraits and small celebrations.',
+   '+2348030000011', 'kemi@framesbykemi.ng', '4 Bisola Durosinmi-Etti Dr', 'Lekki', 'approved', true),
+  ('c0000000-0000-0000-0000-000000000012', 'b0000000-0000-0000-0000-000000000012', 'Paused Photo Co', 'paused-photo-co',
+   'Not taking bookings right now. Must never be recommended.',
+   '+2348030000012', null, null, 'Victoria Island', 'approved', false),
+  ('c0000000-0000-0000-0000-000000000013', 'b0000000-0000-0000-0000-000000000013', 'Pending Pixels', 'pending-pixels',
+   'Pending review. Must never appear to customers or the concierge.',
+   '+2348030000013', null, null, 'Victoria Island', 'pending', true)
+) as v(id, owner, name, slug, description, phone, email, address, city, status, accepting)
+join public.service_categories c on c.slug = 'photography-video';
+
+insert into public.business_services (business_id, category_id, name, description, pricing_type, price_minor,
+  duration_minutes, sort_order)
+select v.biz::uuid, c.id, v.name, v.description, 'fixed', v.price, v.duration, v.sort_order
+from (values
+  ('c0000000-0000-0000-0000-000000000010', 'Birthday & Party Coverage (up to 150 guests)',
+   'One photographer for up to 5 hours, 250+ edited photos and an online gallery.', 25000000, 300, 1),
+  ('c0000000-0000-0000-0000-000000000010', 'Corporate Event Photography',
+   'Conferences, launches and dinners. Two photographers and same-day highlights.', 35000000, 480, 2),
+  ('c0000000-0000-0000-0000-000000000011', 'Birthday Shoot (up to 60 guests)',
+   'Three hours of candid coverage and 150 edited photos.', 15000000, 180, 1),
+  ('c0000000-0000-0000-0000-000000000011', 'Family Portrait Session',
+   'One-hour outdoor or at-home portrait session.', 8000000, 60, 2),
+  ('c0000000-0000-0000-0000-000000000012', 'Birthday Photography',
+   'Hidden: not accepting bookings.', 10000000, 240, 1),
+  ('c0000000-0000-0000-0000-000000000013', 'Birthday Photography',
+   'Hidden: business not approved.', 9000000, 240, 1)
+) as v(biz, name, description, price, duration, sort_order)
+join public.service_categories c on c.slug = 'photography-video';
+
+insert into public.service_areas (business_id, state, city, area)
+select v.biz::uuid, 'Lagos', 'Lagos', v.area
+from (values
+  ('c0000000-0000-0000-0000-000000000010', 'Victoria Island'),
+  ('c0000000-0000-0000-0000-000000000010', 'Ikoyi'),
+  ('c0000000-0000-0000-0000-000000000010', 'Lekki'),
+  ('c0000000-0000-0000-0000-000000000011', 'Lekki'),
+  ('c0000000-0000-0000-0000-000000000011', 'Ajah'),
+  ('c0000000-0000-0000-0000-000000000011', 'Victoria Island'),
+  ('c0000000-0000-0000-0000-000000000012', 'Victoria Island'),
+  ('c0000000-0000-0000-0000-000000000013', 'Victoria Island')
+) as v(biz, area);
+
+-- Snapshot works every day; Frames by Kemi only on weekdays, so a Saturday event rules it out.
+insert into public.business_availability (business_id, day_of_week, start_time, end_time)
+select 'c0000000-0000-0000-0000-000000000010'::uuid, d, '09:00', '22:00' from generate_series(0, 6) d;
+insert into public.business_availability (business_id, day_of_week, start_time, end_time)
+select 'c0000000-0000-0000-0000-000000000011'::uuid, d, '09:00', '18:00' from generate_series(1, 5) d;
+insert into public.business_availability (business_id, day_of_week, start_time, end_time)
+select b.id, d, '09:00', '20:00'
+from public.businesses b, generate_series(0, 6) d
+where b.slug in ('paused-photo-co', 'pending-pixels');

@@ -85,9 +85,9 @@ grant execute on function pg_temp.act_as(uuid) to anon, authenticated;
 select pg_temp.act_as(null);
 select results_eq($$ select slug from public.businesses where slug in ('chidi-cleaning', 'dayo-draft') $$,
   array['chidi-cleaning'], 'visitors only see approved businesses');
-select ok((select bool_and(slug <> 'dayo-draft') from public.search_businesses(null, null, null, null, 'relevance', 50, 0)),
+select ok((select bool_and(slug <> 'dayo-draft') from public.match_businesses(p_limit => 50)),
   'search never returns unapproved businesses');
-select is_empty($$ select 1 from public.search_businesses('Dayo Draft') $$,
+select is_empty($$ select 1 from public.match_businesses('Dayo Draft') $$,
   'searching an unapproved business by name finds nothing');
 select throws_ok($$ select * from public.get_booking_counterparts(array['00000000-0000-0000-0000-00000000000a'::uuid]) $$,
   '42501', null, 'visitors cannot look up booking counterparts');

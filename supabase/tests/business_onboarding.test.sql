@@ -75,7 +75,7 @@ values ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-0000000
         '00000000-0000-0000-0000-0000000000f4', 'utility_bill', 'Please upload proof of address.');
 
 select pg_temp.act_as(null);
-select is_empty($$ select 1 from public.search_businesses('Fola') $$,
+select is_empty($$ select 1 from public.match_businesses('Fola') $$,
   'businesses under review never appear in search or the concierge');
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000f2');
@@ -92,10 +92,13 @@ select is((select count(*)::int from public.verification_requests), 1, 'the owne
 
 reset role;
 update public.businesses set status = 'approved' where id = '30000000-0000-0000-0000-000000000001';
+-- Search lists businesses with something to book (add-ons alone don't count).
+insert into public.business_services (business_id, name, price_minor)
+values ('30000000-0000-0000-0000-000000000001', 'Haircut', 500000);
 select ok((select is_verified from public.businesses where id = '30000000-0000-0000-0000-000000000001'),
   'approval marks the business verified');
 select pg_temp.act_as(null);
-select results_eq($$ select slug from public.search_businesses('Fola') $$, array['fola-fresh-cuts'],
+select results_eq($$ select slug from public.match_businesses('Fola') $$, array['fola-fresh-cuts'],
   'approved businesses appear in search');
 
 select * from finish();

@@ -81,11 +81,24 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         values={{
           q: filters.query ?? undefined,
           location: filters.location ?? undefined,
+          date: filters.date ?? undefined,
+          guests: filters.guests ? String(filters.guests) : undefined,
           max: filters.maxNaira,
           sort: filters.sort,
         }}
       />
-      <ResultsList results={results} page={filters.page} pageHref={pageHref} />
+      <ResultsList
+        results={results}
+        page={filters.page}
+        pageHref={pageHref}
+        needs={{
+          location: filters.location ?? null,
+          date: filters.date ?? null,
+          time: null,
+          guests: filters.guests ?? null,
+          budgetMinor: filters.maxPriceMinor ?? null,
+        }}
+      />
     </Container>
   );
 }
