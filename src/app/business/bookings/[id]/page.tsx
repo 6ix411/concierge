@@ -1,8 +1,9 @@
-import { CalendarDays, ChevronLeft, MapPin, MessageCircle } from "lucide-react";
+import { CalendarDays, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BookingHistory } from "@/components/bookings/booking-history";
 import { BookingResponse } from "@/components/business/booking-response";
 import { BusinessBookingStatus } from "@/components/business/business-booking-list";
 import { DisputeStatus } from "@/components/disputes/dispute-status";
@@ -10,6 +11,7 @@ import { ReportProblemForm } from "@/components/disputes/report-problem";
 import { LinkButton } from "@/components/ui";
 import { canOpenDispute } from "@/lib/admin/rules";
 import { getBusinessBooking } from "@/lib/business/booking-queries";
+import { formatBookingLocation, itemKindLabels } from "@/lib/bookings/workflow";
 import { businessBookingActions } from "@/lib/business/booking-rules";
 import { commissionFor, paidStatuses } from "@/lib/business/earnings";
 import { requireOwnBusiness } from "@/lib/business/queries";
@@ -23,12 +25,12 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
   const booking = await getBusinessBooking(id, business.id);
   if (!booking) notFound();
 
-  const actions = businessBookingActions(booking.status);
+  const actions = businessBookingActions(booking.status, booking.needs_quote);
   const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
   const isPaid = paidStatuses.includes(booking.status);
   const conversationId = booking.conversations?.id ?? null;
   const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
-  const location = [booking.address_line, booking.city, booking.state].filter(Boolean).join(", ");
+  const location = formatBookingLocation(booking);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,7 +45,8 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
         <h1 className="text-2xl font-semibold tracking-tight">{booking.customerName}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
           <BusinessBookingStatus status={booking.status} />
-          <span>{booking.reference}</span>
+          <span>Booking ID {booking.reference}</span>
+          {booking.needs_quote && booking.status === "pending_provider" && <span>· Quote requested</span>}
         </div>
       </div>
 
@@ -58,9 +61,15 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
             {location}
           </p>
         )}
+        {booking.guests && (
+          <p className="flex items-center gap-2">
+            <Users aria-hidden className="size-4 text-muted" />
+            {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
+          </p>
+        )}
         {booking.customer_notes && (
           <div className="rounded-xl bg-surface-muted p-3">
-            <p className="font-medium">Customer’s notes</p>
+            <p className="font-medium">Additional requirements</p>
             <p className="mt-1 whitespace-pre-line text-muted">{booking.customer_notes}</p>
           </div>
         )}
@@ -80,6 +89,9 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
               <span>
                 {item.name}
                 {item.quantity > 1 && ` × ${item.quantity}`}
+                {itemKindLabels[item.kind] && (
+                  <span className="text-xs text-muted"> · {itemKindLabels[item.kind]}</span>
+                )}
               </span>
               <span>{formatNaira(item.total_minor ?? item.unit_price_minor * item.quantity)}</span>
             </div>
@@ -121,6 +133,11 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
       {!dispute && canOpenDispute(booking) && (
         <ReportProblemForm bookingId={booking.id} otherParty={booking.customerName} />
       )}
+      <BookingHistory
+        events={booking.booking_events}
+        viewer="business"
+        names={{ customer: booking.customerName, business: business.name }}
+      />
     </div>
   );
 }

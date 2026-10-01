@@ -1,10 +1,12 @@
-import { CalendarDays, MapPin, MessageCircle, Star } from "lucide-react";
+import { CalendarDays, MapPin, MessageCircle, Star, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { AcceptQuoteForm, CancelBookingForm, RescheduleForm } from "@/components/bookings/booking-actions";
+import { BookingHistory } from "@/components/bookings/booking-history";
+import { BookingProgress } from "@/components/bookings/booking-progress";
 import { BookingStatusBadge } from "@/components/bookings/booking-status-badge";
 import { DisputeStatus } from "@/components/disputes/dispute-status";
 import { ReportProblemForm } from "@/components/disputes/report-problem";
@@ -12,7 +14,7 @@ import { BusinessAvatar } from "@/components/marketplace/business-avatar";
 import { Stars } from "@/components/marketplace/rating";
 import { VerifiedBadge } from "@/components/marketplace/verified-badge";
 import { LinkButton } from "@/components/ui";
-import { canOpenDispute } from "@/lib/admin/rules";
+import { amountPaid, canOpenDispute } from "@/lib/admin/rules";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { getCustomerBooking } from "@/lib/bookings/queries";
 import {
@@ -23,6 +25,7 @@ import {
   canMessage,
   canReview,
 } from "@/lib/bookings/rules";
+import { formatBookingLocation, itemKindLabels } from "@/lib/bookings/workflow";
 import { addDays, lagosToday, toLagosParts } from "@/lib/dates";
 import { formatDateTime, formatNaira } from "@/lib/format";
 
@@ -59,18 +62,13 @@ export default async function BookingDetailPage({
         ? query.payment
         : null;
   const notice = noticeKey ? notices[noticeKey] : undefined;
-  const paid = booking.payments.some((p) => p.status === "success");
+  const paid = booking.payments.some((p) => p.status === "success" || p.status === "refunded");
+  const refundDue = booking.status === "cancelled" ? amountPaid(booking.payments) : 0;
   const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const today = lagosToday();
   const current = booking.scheduled_start ? toLagosParts(booking.scheduled_start) : undefined;
-
-  const timeline = [
-    { label: "Requested", at: booking.created_at },
-    { label: "Accepted", at: booking.accepted_at },
-    { label: "Paid and confirmed", at: booking.confirmed_at },
-    { label: "Completed", at: booking.completed_at },
-    { label: "Cancelled", at: booking.cancelled_at },
-  ].filter((step): step is { label: string; at: string } => Boolean(step.at));
+  const location = formatBookingLocation(booking);
+  const reached = booking.booking_events.flatMap((event) => (event.to_status ? [event.to_status] : []));
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -94,20 +92,33 @@ export default async function BookingDetailPage({
           )}
         </header>
 
+        <BookingProgress status={booking.status} reached={reached} />
+        {refundDue > 0 && (
+          <FormMessage tone="success">
+            {formatNaira(refundDue)} is due back to you. We’ll let you know when the refund is sent.
+          </FormMessage>
+        )}
+
         <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
           <p className="flex items-start gap-2">
             <CalendarDays aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
             {booking.scheduled_start ? formatDateTime(booking.scheduled_start) : "Date to be agreed"}
           </p>
-          {(booking.address_line || booking.city) && (
+          {location && (
             <p className="flex items-start gap-2">
               <MapPin aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
-              {[booking.address_line, booking.city, booking.state].filter(Boolean).join(", ")}
+              {location}
+            </p>
+          )}
+          {booking.guests && (
+            <p className="flex items-start gap-2">
+              <Users aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
+              {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
             </p>
           )}
           {booking.customer_notes && (
             <div>
-              <p className="text-muted">Your notes</p>
+              <p className="text-muted">Additional requirements</p>
               <p className="whitespace-pre-line">{booking.customer_notes}</p>
             </div>
           )}
@@ -128,6 +139,9 @@ export default async function BookingDetailPage({
                   <span>
                     {item.name}
                     {item.quantity > 1 && <span className="text-muted"> × {item.quantity}</span>}
+                    {itemKindLabels[item.kind] && (
+                      <span className="text-xs text-muted"> · {itemKindLabels[item.kind]}</span>
+                    )}
                   </span>
                   <span>{item.unit_price_minor > 0 ? formatNaira(item.total_minor ?? 0) : "Quote"}</span>
                 </li>
@@ -137,10 +151,16 @@ export default async function BookingDetailPage({
             <p className="text-muted">Custom quote request</p>
           )}
           <div className="mt-1 flex justify-between border-t border-border pt-2 font-semibold">
-            <span>{["quote_requested", "quoted"].includes(booking.status) ? "Estimate" : "Total"}</span>
+            <span>
+              {booking.needs_quote && ["pending_provider", "quoted"].includes(booking.status)
+                ? "Estimate"
+                : "Total"}
+            </span>
             <span>{booking.total_minor > 0 ? formatNaira(booking.total_minor) : "To be quoted"}</span>
           </div>
-          {paid && <p className="text-verified">Paid</p>}
+          {paid && (
+            <p className="text-verified">{booking.status === "refunded" ? "Paid, then refunded" : "Paid"}</p>
+          )}
         </section>
 
         {booking.reviews && (
@@ -190,20 +210,11 @@ export default async function BookingDetailPage({
           <ReportProblemForm bookingId={booking.id} otherParty={booking.businesses?.name ?? "the business"} />
         )}
 
-        <section className="rounded-2xl border border-border p-4">
-          <h2 className="mb-3 text-sm font-semibold">Timeline</h2>
-          <ol className="flex flex-col gap-2 text-sm">
-            {timeline.map((step) => (
-              <li key={step.label} className="flex justify-between gap-3">
-                <span>{step.label}</span>
-                <span className="text-muted">{formatDateTime(step.at)}</span>
-              </li>
-            ))}
-          </ol>
-          {booking.cancellation_reason && (
-            <p className="mt-2 text-sm text-muted">Reason: {booking.cancellation_reason}</p>
-          )}
-        </section>
+        <BookingHistory
+          events={booking.booking_events}
+          viewer="customer"
+          names={{ customer: "You", business: booking.businesses?.name ?? "The business" }}
+        />
       </aside>
     </div>
   );

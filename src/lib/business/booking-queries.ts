@@ -6,9 +6,15 @@ import { AppError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
 export const bookingTabs = {
-  requests: { label: "Requests", statuses: ["quote_requested", "requested"] },
-  upcoming: { label: "Upcoming", statuses: ["quoted", "accepted", "confirmed", "in_progress"] },
-  past: { label: "Past", statuses: ["completed", "cancelled", "rejected", "expired", "disputed"] },
+  requests: { label: "Requests", statuses: ["requested", "pending_provider"] },
+  upcoming: {
+    label: "Upcoming",
+    statuses: ["quoted", "accepted", "payment_pending", "confirmed", "in_progress"],
+  },
+  past: {
+    label: "Past",
+    statuses: ["completed", "reviewed", "cancelled", "declined", "expired", "disputed", "refunded"],
+  },
 } as const satisfies Record<string, { label: string; statuses: BookingStatus[] }>;
 
 export type BookingTab = keyof typeof bookingTabs;
@@ -20,7 +26,7 @@ export async function listBusinessBookings(businessId: string, tab: BookingTab, 
   let query = supabase
     .from("bookings")
     .select(
-      "id, reference, status, scheduled_start, total_minor, customer_id, created_at, booking_items(name)",
+      "id, reference, status, needs_quote, scheduled_start, total_minor, customer_id, created_at, booking_items(name)",
     )
     .eq("business_id", businessId)
     .in("status", statuses)
@@ -43,7 +49,7 @@ export async function getBusinessBooking(bookingId: string, businessId: string) 
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, scheduled_start, scheduled_end, address_line, city, state, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor), conversations(id), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at)",
+      "id, reference, status, needs_quote, scheduled_start, scheduled_end, address_line, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
     )
     .eq("id", bookingId)
     .eq("business_id", businessId)

@@ -118,10 +118,12 @@ describe("slugs", () => {
 
 describe("business bookings", () => {
   it("offers the next steps for each status", () => {
-    expect(businessBookingActions("requested")).toEqual(["accept", "decline"]);
-    expect(businessBookingActions("quote_requested")).toEqual(["quote", "decline"]);
+    expect(businessBookingActions("pending_provider")).toEqual(["accept", "decline"]);
+    expect(businessBookingActions("pending_provider", true)).toEqual(["quote", "decline"]);
+    expect(businessBookingActions("payment_pending")).toEqual(["cancel"]);
     expect(businessBookingActions("confirmed")).toEqual(["start", "complete", "cancel"]);
     expect(businessBookingActions("completed")).toEqual([]);
+    expect(businessBookingActions("reviewed")).toEqual([]);
   });
 
   it("enforces notice and booking window", () => {

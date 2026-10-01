@@ -30,7 +30,7 @@ export async function getCustomerBooking(customerId: string, bookingId: string) 
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, scheduled_start, scheduled_end, address_line, city, state, customer_notes, quote_notes, subtotal_minor, platform_fee_minor, total_minor, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, businesses(id, name, slug, logo_path, is_verified), booking_items(id, name, unit_price_minor, quantity, total_minor), conversations(id, status), reviews(id, rating), payments(id, status, amount_minor, paid_at, provider), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at)",
+      "id, reference, status, needs_quote, scheduled_start, scheduled_end, address_line, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, platform_fee_minor, total_minor, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, businesses(id, name, slug, logo_path, is_verified), booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id, status), reviews(id, rating), payments(id, status, amount_minor, refunded_minor, paid_at, provider), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
     )
     .eq("id", bookingId)
     .eq("customer_id", customerId)

@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 
 import { AdminActionForm } from "@/components/admin/action-form";
 import { Panel } from "@/components/admin/dashboard-widgets";
+import { BookingHistory } from "@/components/bookings/booking-history";
 import { BookingStatusBadge } from "@/components/bookings/booking-status-badge";
 import { Badge } from "@/components/ui";
 import { adminBookingAction } from "@/lib/admin/booking-actions";
-import { adminBookingActionsFor, disputeStatusInfo, formatBps } from "@/lib/admin/rules";
+import { adminBookingActionsFor, amountPaid, disputeStatusInfo, formatBps } from "@/lib/admin/rules";
 import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
+import { formatBookingLocation, itemKindLabels } from "@/lib/bookings/workflow";
 import { AppError } from "@/lib/errors";
 import { formatDateTime, formatNaira } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -32,13 +34,15 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
   const { data: booking, error } = await db
     .from("bookings")
     .select(
-      `id, reference, status, scheduled_start, scheduled_end, address_line, city, state, customer_notes, quote_notes,
+      `id, reference, status, needs_quote, scheduled_start, scheduled_end, address_line, area, city, state, guests,
+       customer_notes, quote_notes,
        subtotal_minor, platform_fee_minor, total_minor, commission_rate_bps, created_at, accepted_at, confirmed_at,
        completed_at, cancelled_at, cancellation_reason,
        business:businesses(id, name, owner_id),
        customer:users!bookings_customer_id_fkey(id, full_name, email),
        cancelled_by_user:users!bookings_cancelled_by_fkey(full_name, role),
-       booking_items(id, name, unit_price_minor, quantity, total_minor),
+       booking_items(id, name, unit_price_minor, quantity, total_minor, kind),
+       booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at),
        payments(id, provider, reference, status, amount_minor, refunded_minor, paid_at),
        payouts(id, status, gross_minor, commission_minor, amount_minor, failure_reason, paid_at),
        disputes(id, reason, status, created_at)`,
@@ -48,19 +52,8 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
   if (error) throw new AppError("INTERNAL", "Could not load the booking.", { cause: error });
   if (!booking) notFound();
 
-  const actions = adminBookingActionsFor(booking.status);
-  const timeline = [
-    { label: "Requested", at: booking.created_at },
-    { label: "Accepted", at: booking.accepted_at },
-    { label: "Paid and confirmed", at: booking.confirmed_at },
-    { label: "Completed", at: booking.completed_at },
-    {
-      label: booking.cancelled_by_user
-        ? `Cancelled by ${booking.cancelled_by_user.role === "admin" ? "the Concierge team" : (booking.cancelled_by_user.full_name ?? "a user")}`
-        : "Cancelled",
-      at: booking.cancelled_at,
-    },
-  ].filter((step): step is { label: string; at: string } => Boolean(step.at));
+  const refundDue = booking.status === "cancelled" ? amountPaid(booking.payments) : 0;
+  const actions = adminBookingActionsFor(booking.status, refundDue);
 
   return (
     <div className="flex flex-col gap-6">
@@ -105,6 +98,14 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
                 label="Mark as completed"
               />
             )}
+            {actions.includes("refund") && (
+              <AdminActionForm
+                action={adminBookingAction.bind(null, "refund")}
+                fields={{ bookingId: booking.id }}
+                label={`Record refund of ${formatNaira(refundDue)}`}
+                reason={{ label: "Note, e.g. the refund reference", required: false }}
+              />
+            )}
             {actions.includes("cancel") && (
               <AdminActionForm
                 action={adminBookingAction.bind(null, "cancel")}
@@ -146,12 +147,16 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
             <dt className="text-muted">When</dt>
             <dd>{booking.scheduled_start ? formatDateTime(booking.scheduled_start) : "Not set"}</dd>
             <dt className="text-muted">Where</dt>
-            <dd>
-              {[booking.address_line, booking.city, booking.state].filter(Boolean).join(", ") || "Not set"}
-            </dd>
+            <dd>{formatBookingLocation(booking) || "Not set"}</dd>
+            {booking.guests && (
+              <>
+                <dt className="text-muted">Guests</dt>
+                <dd>{booking.guests}</dd>
+              </>
+            )}
             {booking.customer_notes && (
               <>
-                <dt className="text-muted">Notes</dt>
+                <dt className="text-muted">Requirements</dt>
                 <dd className="whitespace-pre-line">{booking.customer_notes}</dd>
               </>
             )}
@@ -164,16 +169,15 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
           </dl>
         </Panel>
 
-        <Panel title="Timeline">
-          <ol className="flex flex-col gap-2 text-sm">
-            {timeline.map((step) => (
-              <li key={step.label} className="flex justify-between gap-3">
-                <span>{step.label}</span>
-                <span className="text-muted">{formatDateTime(step.at)}</span>
-              </li>
-            ))}
-          </ol>
-        </Panel>
+        <BookingHistory
+          events={booking.booking_events}
+          viewer="admin"
+          names={{
+            customer: booking.customer?.full_name ?? "Customer",
+            business: booking.business?.name ?? "Business",
+          }}
+          className="bg-surface"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -184,6 +188,9 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
                 <span>
                   {item.name}
                   {item.quantity > 1 && ` × ${item.quantity}`}
+                  {itemKindLabels[item.kind] && (
+                    <span className="text-xs text-muted"> · {itemKindLabels[item.kind]}</span>
+                  )}
                 </span>
                 <span className="tabular-nums">{formatNaira(item.total_minor ?? 0)}</span>
               </li>

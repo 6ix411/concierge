@@ -187,10 +187,7 @@ update public.users set role = 'admin' where email = 'you@example.com';
 
 - **Concierge.** A chat that finds, compares and explains providers, then opens the booking form.
   See "AI concierge" below.
-- **Bookings.** Prices always come from the database, never the form. A booking moves
-  `requested → accepted → confirmed` (paid) `→ in_progress → completed`; quote requests go through
-  `quote_requested → quoted → accepted` first. Customers can cancel before paying, or up to 24 hours
-  before the start once paid, and reschedule until the business accepts.
+- **Bookings.** See "Booking engine" below.
 - **Payments.** `PAYMENT_PROVIDER=mock` (development only; refused in production) completes checkout
   without a real gateway. Payment is verified server-side and the booking is confirmed once, however
   many times the callback is hit.
@@ -209,6 +206,53 @@ portfolio, reviews with a 5-to-1 star breakdown, and availability (working hours
 ahead it books, upcoming days off). Completed bookings, the price range and the star breakdown come
 from `get_business_stats`, which only answers for approved businesses. Nothing on a card or profile
 is typed in by hand: it all comes from the database.
+
+## Booking engine
+
+The customer picks the business, then on `/book/[slug]`: services, a package, date and time,
+location (address, area, city, state), add-ons, and additional requirements (guests and notes).
+The server re-checks everything and prices it from the database: the business must be approved and
+taking bookings, serve that state, work at that time, respect its notice, booking window and daily
+limit, and every service, package and add-on must still be offered. `create_booking` then writes the
+booking and its items in one transaction.
+
+```
+requested → pending_provider → accepted → payment_pending → confirmed → in_progress → completed → reviewed
+```
+
+| State            | Means                                                          | Moved by                    |
+| ---------------- | -------------------------------------------------------------- | --------------------------- |
+| requested        | The customer sent it                                           | Customer                    |
+| pending_provider | Waiting for the business to accept, decline or send a quote    | Automatic, straight after   |
+| quoted           | The business sent a price (quote requests only)                | Business                    |
+| accepted         | Accepted (or quote accepted); the customer can pay             | Business, or customer       |
+| payment_pending  | The customer started checkout; can retry until it goes through | Customer                    |
+| confirmed        | Payment verified on the server; chat opens                     | Payment callback            |
+| in_progress      | The job has started                                            | Business                    |
+| completed        | The job is done; the payout is created                         | Business or admin           |
+| reviewed         | The customer left a review                                     | Automatic, on review        |
+| declined         | The business said no                                           | Business                    |
+| cancelled        | Called off; if paid, a refund is due                           | Customer, business or admin |
+| disputed         | A problem was reported after payment; the payout is held       | Customer or business        |
+| refunded         | A cancelled, paid booking has been refunded                    | Admin, after sending it     |
+
+`expired` is kept for bookings nobody acted on. The database enforces the transitions
+(`is_valid_booking_transition`), and the app offers the same ones (`src/lib/bookings/workflow.ts`).
+All status changes go through `moveBooking` (`src/lib/bookings/transitions.ts`), which only applies if
+the booking is still in the expected state.
+
+**Booking ID.** Every booking has a UUID and a unique reference like `BK-3F2483318F`, shown to
+everyone.
+
+**History.** `booking_events` records the creation, every status change and every reschedule, with
+who made it (customer, business, Concierge team or automatic) and any note or reason. A trigger
+writes it, so nothing can change a booking without leaving a record, and the table can't be edited.
+Customers, the business and admins see it on the booking page.
+
+**Refunds.** A customer can cancel a paid booking up to 24 hours before the start, and a dispute
+can be settled in the customer's favour. Both leave it cancelled with a refund due. The admin
+**Refunds due** list shows these; once the money is sent from the payment provider's dashboard,
+**Record refund** marks the payment refunded and moves the booking to `refunded`.
 
 ## Business platform
 

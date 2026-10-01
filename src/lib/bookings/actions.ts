@@ -10,18 +10,19 @@ import { AppError, isAppError, logger } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database";
 
 import {
+  busyStatuses,
   canCustomerAcceptQuote,
-  checkBookingWindow,
   canCustomerCancel,
   canCustomerReschedule,
+  checkBookingWindow,
   isWithinAvailability,
   priceBooking,
-  type BookingStatus,
 } from "./rules";
 import { bookingRequestSchema, cancelSchema, rescheduleSchema } from "./schemas";
+import { resolveSelection } from "./selection";
+import { moveBooking, updateBookingDetails } from "./transitions";
 
 const DEFAULT_DURATION_MINUTES = 120;
 
@@ -42,18 +43,22 @@ export async function createBookingAction(
     const customer = await requireRole("customer");
 
     const serviceIds = formData.getAll("serviceIds").map(String);
+    const packageId = String(formData.get("packageId") ?? "") || undefined;
     const quantities = Object.fromEntries(
       serviceIds.map((id) => [id, formData.get(`quantity-${id}`) ?? "1"] as const),
     );
     const parsed = bookingRequestSchema.safeParse({
       mode: formData.get("mode"),
       serviceIds,
+      packageId,
       quantities,
       date: formData.get("date"),
       time: formData.get("time"),
       addressLine: formData.get("addressLine"),
       area: formData.get("area"),
+      city: formData.get("city"),
       state: formData.get("state"),
+      guests: formData.get("guests") || undefined,
       notes: formData.get("notes") || undefined,
     });
     if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
@@ -70,32 +75,33 @@ export async function createBookingAction(
     if (!business.accepting_bookings)
       return { status: "error", message: `${business.name} isn't taking new bookings right now.` };
 
-    const [{ data: services, error: servicesError }, { data: availability }] = await Promise.all([
-      supabase
-        .from("business_services")
-        .select("id, name, pricing_type, price_minor, duration_minutes, is_addon")
-        .eq("business_id", business.id)
-        .eq("is_active", true),
-      supabase
-        .from("business_availability")
-        .select("day_of_week, specific_date, start_time, end_time, is_available")
-        .eq("business_id", business.id),
-    ]);
+    const [{ data: services, error: servicesError }, { data: availability }, { data: areas }] =
+      await Promise.all([
+        supabase
+          .from("business_services")
+          .select("id, name, pricing_type, price_minor, duration_minutes, is_addon, is_package")
+          .eq("business_id", business.id)
+          .eq("is_active", true),
+        supabase
+          .from("business_availability")
+          .select("day_of_week, specific_date, start_time, end_time, is_available")
+          .eq("business_id", business.id),
+        supabase.from("service_areas").select("state").eq("business_id", business.id),
+      ]);
     if (servicesError) throw new AppError("INTERNAL", "Could not load services.", { cause: servicesError });
 
-    const offered = new Set((services ?? []).map((s) => s.id));
-    if (input.serviceIds.some((id) => !offered.has(id))) {
-      return {
-        status: "error",
-        message: "One of the services is no longer available. Please refresh and try again.",
-      };
+    const selection = resolveSelection(services ?? [], input);
+    if (!selection.ok) {
+      return selection.field
+        ? { status: "error", fieldErrors: { [selection.field]: selection.message } }
+        : { status: "error", message: selection.message };
     }
 
-    const chosen = (services ?? []).filter((s) => input.serviceIds.includes(s.id));
-    if (chosen.length > 0 && chosen.every((s) => s.is_addon)) {
+    const servedStates = [...new Set((areas ?? []).map((area) => area.state))];
+    if (servedStates.length > 0 && !servesState(servedStates, input.state)) {
       return {
         status: "error",
-        fieldErrors: { serviceIds: "Add-ons are extras. Choose a main service too." },
+        fieldErrors: { state: `${business.name} works in ${servedStates.join(", ")} only.` },
       };
     }
 
@@ -119,7 +125,7 @@ export async function createBookingAction(
         .from("bookings")
         .select("id", { count: "exact", head: true })
         .eq("business_id", business.id)
-        .in("status", ["accepted", "confirmed", "in_progress"])
+        .in("status", busyStatuses)
         .gte("scheduled_start", dayStart.toISOString())
         .lt("scheduled_start", new Date(dayStart.getTime() + 86_400_000).toISOString());
       if ((count ?? 0) >= business.max_bookings_per_day) {
@@ -130,15 +136,12 @@ export async function createBookingAction(
       }
     }
 
-    const quote = priceBooking(
-      services ?? [],
-      input.serviceIds.map((id) => ({ serviceId: id, quantity: input.quantities[id] ?? 1 })),
-    );
+    const quote = priceBooking(services ?? [], selection.lines);
     const isQuote = input.mode === "quote" || quote.needsQuote;
     const duration =
-      input.serviceIds.reduce((sum, id) => {
-        const service = services?.find((s) => s.id === id);
-        return sum + (service?.duration_minutes ?? 0) * (input.quantities[id] ?? 1);
+      selection.lines.reduce((sum, line) => {
+        const service = services?.find((s) => s.id === line.serviceId);
+        return sum + (service?.duration_minutes ?? 0) * line.quantity;
       }, 0) || DEFAULT_DURATION_MINUTES;
 
     const start = lagosDateTime(input.date, input.time);
@@ -151,58 +154,63 @@ export async function createBookingAction(
     ]);
     const commission = private_?.commission_rate_bps ?? Number(setting?.value ?? 1000);
 
-    const { data: booking, error: bookingError } = await admin
-      .from("bookings")
-      .insert({
-        customer_id: customer.id,
-        business_id: business.id,
-        status: isQuote ? "quote_requested" : "requested",
-        scheduled_start: start.toISOString(),
-        scheduled_end: end.toISOString(),
-        address_line: input.addressLine,
-        city: input.area,
-        state: input.state,
-        customer_notes: input.notes ?? null,
-        subtotal_minor: quote.subtotalMinor,
-        platform_fee_minor: quote.platformFeeMinor,
-        total_minor: quote.totalMinor,
-        commission_rate_bps: commission,
-      })
-      .select("id, reference")
-      .single();
-    if (bookingError || !booking)
-      throw new AppError("INTERNAL", "Could not create the booking.", { cause: bookingError });
-
-    if (quote.items.length > 0) {
-      const { error: itemsError } = await admin.from("booking_items").insert(
-        quote.items.map((item) => ({
-          booking_id: booking.id,
+    // The booking and its items are created together, then sent to the business.
+    const { data: created, error: createError } = await admin
+      .rpc("create_booking", {
+        p_booking: {
+          customer_id: customer.id,
+          business_id: business.id,
+          scheduled_start: start.toISOString(),
+          scheduled_end: end.toISOString(),
+          address_line: input.addressLine,
+          area: input.area,
+          city: input.city,
+          state: input.state,
+          guests: input.guests ?? null,
+          customer_notes: input.notes ?? null,
+          needs_quote: isQuote,
+          subtotal_minor: quote.subtotalMinor,
+          platform_fee_minor: quote.platformFeeMinor,
+          total_minor: quote.totalMinor,
+          commission_rate_bps: commission,
+        },
+        p_items: quote.items.map((item, index) => ({
           service_id: item.serviceId,
           name: item.name,
           unit_price_minor: item.unitPriceMinor,
           quantity: item.quantity,
+          kind: selection.lines[index]?.kind ?? "service",
         })),
-      );
-      if (itemsError) {
-        await admin.from("bookings").delete().eq("id", booking.id);
-        throw new AppError("INTERNAL", "Could not create the booking.", { cause: itemsError });
-      }
-    }
+      })
+      .single();
+    if (createError || !created)
+      throw new AppError("INTERNAL", "Could not create the booking.", { cause: createError });
 
     if (private_?.owner_id) {
       await notify({
         userId: private_.owner_id,
         type: isQuote ? "booking.quote_requested" : "booking.requested",
         title: isQuote ? "New quote request" : "New booking request",
-        body: `${customer.fullName ?? "A customer"} sent ${booking.reference}.`,
-        data: { bookingId: booking.id },
+        body: `${customer.fullName ?? "A customer"} sent ${created.reference}.`,
+        data: { bookingId: created.id },
       });
     }
-    bookingId = booking.id;
+    bookingId = created.id;
   } catch (error) {
     return toFormError(error, "We couldn't send your request. Please try again.");
   }
   redirect(`/account/bookings/${bookingId}?sent=1`);
+}
+
+/** "Lagos State" and "lagos" are the same state. */
+function servesState(served: string[], state: string): boolean {
+  const normalise = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\bstate\b/g, "")
+      .replace(/[^a-z]/g, "");
+  const wanted = normalise(state);
+  return served.some((s) => normalise(s) === wanted || (wanted === "fct" && normalise(s) === "abuja"));
 }
 
 /** Loads the caller's own booking (RLS) with the fields the rules need. */
@@ -220,25 +228,6 @@ async function loadOwnBooking(bookingId: string, customerId: string) {
   return data;
 }
 
-/** Updates only if the status hasn't changed since we checked (protects against double submits). */
-async function updateIfStatus(
-  bookingId: string,
-  customerId: string,
-  expected: BookingStatus,
-  changes: Database["public"]["Tables"]["bookings"]["Update"],
-) {
-  const { data, error } = await createAdminClient()
-    .from("bookings")
-    .update(changes)
-    .eq("id", bookingId)
-    .eq("customer_id", customerId)
-    .eq("status", expected)
-    .select("id");
-  if (error) throw new AppError("INTERNAL", "Could not update the booking.", { cause: error });
-  if (!data || data.length === 0)
-    throw new AppError("CONFLICT", "This booking changed. Refresh to see the latest.");
-}
-
 export async function cancelBookingAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     const customer = await requireRole("customer");
@@ -253,10 +242,13 @@ export async function cancelBookingAction(_prev: FormState, formData: FormData):
         "This booking can no longer be cancelled here. If something went wrong, contact support.",
       );
     }
-    await updateIfStatus(booking.id, customer.id, booking.status, {
-      status: "cancelled",
-      cancelled_by: customer.id,
-      cancellation_reason: input.reason ?? null,
+    await moveBooking({
+      bookingId: booking.id,
+      from: booking.status,
+      to: "cancelled",
+      actorId: customer.id,
+      changes: { cancelled_by: customer.id, cancellation_reason: input.reason ?? null },
+      scope: { customerId: customer.id },
     });
     if (booking.businesses?.owner_id) {
       await notify({
@@ -310,9 +302,15 @@ export async function rescheduleBookingAction(_prev: FormState, formData: FormDa
       booking.scheduled_start && booking.scheduled_end
         ? new Date(booking.scheduled_end).getTime() - new Date(booking.scheduled_start).getTime()
         : DEFAULT_DURATION_MINUTES * 60_000;
-    await updateIfStatus(booking.id, customer.id, booking.status, {
-      scheduled_start: start.toISOString(),
-      scheduled_end: new Date(start.getTime() + previousDuration).toISOString(),
+    await updateBookingDetails({
+      bookingId: booking.id,
+      expectedStatus: booking.status,
+      actorId: customer.id,
+      changes: {
+        scheduled_start: start.toISOString(),
+        scheduled_end: new Date(start.getTime() + previousDuration).toISOString(),
+      },
+      scope: { customerId: customer.id },
     });
     if (booking.businesses?.owner_id) {
       await notify({
@@ -337,7 +335,14 @@ export async function acceptQuoteAction(_prev: FormState, formData: FormData): P
     bookingId = cancelSchema.shape.bookingId.parse(formData.get("bookingId"));
     const booking = await loadOwnBooking(bookingId, customer.id);
     if (!canCustomerAcceptQuote(booking)) throw new AppError("CONFLICT", "There's no quote to accept.");
-    await updateIfStatus(booking.id, customer.id, "quoted", { status: "accepted" });
+    await moveBooking({
+      bookingId: booking.id,
+      from: "quoted",
+      to: "accepted",
+      actorId: customer.id,
+      note: "Quote accepted",
+      scope: { customerId: customer.id },
+    });
     if (booking.businesses?.owner_id) {
       await notify({
         userId: booking.businesses.owner_id,

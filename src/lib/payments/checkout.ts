@@ -80,9 +80,9 @@ export async function finalizePayment(reference: string): Promise<{ bookingId: s
 
   const { data: confirmed, error: bookingError } = await admin
     .from("bookings")
-    .update({ status: "confirmed" })
+    .update({ status: "confirmed", change_note: `Payment ${reference} verified` })
     .eq("id", payment.booking_id)
-    .eq("status", "accepted")
+    .eq("status", "payment_pending")
     .select("id, reference, customer_id, businesses(owner_id)")
     .maybeSingle();
   if (bookingError) logger.error("Paid booking could not be confirmed", { reference, error: bookingError });

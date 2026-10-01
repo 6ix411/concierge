@@ -45,9 +45,11 @@ select throws_ok($$
   update public.bookings set status = 'completed' where id = '20000000-0000-0000-0000-000000000001'
 $$, '23514', null, 'invalid booking status jumps are rejected');
 
+update public.bookings set status = 'pending_provider' where id = '20000000-0000-0000-0000-000000000001';
 update public.bookings set status = 'accepted' where id = '20000000-0000-0000-0000-000000000001';
 select ok(not exists (select 1 from public.conversations where booking_id = '20000000-0000-0000-0000-000000000001'),
   'chat does not open before payment');
+update public.bookings set status = 'payment_pending' where id = '20000000-0000-0000-0000-000000000001';
 update public.bookings set status = 'confirmed' where id = '20000000-0000-0000-0000-000000000001';
 select ok(exists (select 1 from public.conversations where booking_id = '20000000-0000-0000-0000-000000000001'),
   'chat opens when the booking is confirmed');
