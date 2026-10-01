@@ -31,7 +31,7 @@ create function pg_temp.example() returns setof text language sql as $$
 $$;
 grant execute on function pg_temp.example() to anon, authenticated;
 
-select ok(has_function_privilege('anon', 'public.match_businesses(text, text, text, text, text, date, time, integer, bigint, bigint, text, integer, integer)', 'execute'),
+select ok(has_function_privilege('anon', 'public.match_businesses(text, text, text, text, text, date, time, integer, bigint, bigint, text, integer, integer, uuid[])', 'execute'),
   'visitors can search');
 select hasnt_function('public', 'search_businesses', 'the old search path is gone');
 

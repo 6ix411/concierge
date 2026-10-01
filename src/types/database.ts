@@ -1347,6 +1347,7 @@ export type Database = {
           p_city?: string;
           p_date?: string;
           p_guests?: number;
+          p_ids?: string[];
           p_limit?: number;
           p_max_price_minor?: number;
           p_offset?: number;
