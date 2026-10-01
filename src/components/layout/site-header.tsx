@@ -2,8 +2,10 @@ import { User } from "lucide-react";
 import Link from "next/link";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { homePathForRole } from "@/lib/auth/permissions";
 import { getSessionUser } from "@/lib/auth/session";
+import { countUnread } from "@/lib/notifications/queries";
 
 import { Container } from "./container";
 
@@ -12,6 +14,7 @@ const navLink = "hover:bg-surface-muted rounded-xl px-3 py-2 font-medium";
 export async function SiteHeader() {
   const user = await getSessionUser().catch(() => null);
   const isCustomerSide = !user || user.role === "customer";
+  const unread = user?.status === "active" ? await countUnread(user.id).catch(() => 0) : null;
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
@@ -42,6 +45,7 @@ export async function SiteHeader() {
                   </Link>
                 </span>
               )}
+              {unread !== null && <NotificationBell userId={user.id} initialCount={unread} />}
               {/* No link to the admin dashboard anywhere on the site: admins use their private URL. */}
               {user.role !== "admin" && (
                 <Link

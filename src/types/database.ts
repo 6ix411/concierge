@@ -1294,11 +1294,54 @@ export type Database = {
           },
         ];
       };
+      notification_deliveries: {
+        Row: {
+          attempts: number;
+          channel: string;
+          created_at: string;
+          id: string;
+          last_error: string | null;
+          notification_id: string;
+          sent_at: string | null;
+          status: string;
+        };
+        Insert: {
+          attempts?: number;
+          channel: string;
+          created_at?: string;
+          id?: string;
+          last_error?: string | null;
+          notification_id: string;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Update: {
+          attempts?: number;
+          channel?: string;
+          created_at?: string;
+          id?: string;
+          last_error?: string | null;
+          notification_id?: string;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_notification_id_fkey";
+            columns: ["notification_id"];
+            isOneToOne: false;
+            referencedRelation: "notifications";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           body: string | null;
+          category: string | null;
           created_at: string;
           data: NonNullable<Json>;
+          dedupe_key: string | null;
           id: string;
           read_at: string | null;
           title: string;
@@ -1307,8 +1350,10 @@ export type Database = {
         };
         Insert: {
           body?: string | null;
+          category?: never;
           created_at?: string;
           data?: NonNullable<Json>;
+          dedupe_key?: string | null;
           id?: string;
           read_at?: string | null;
           title: string;
@@ -1317,8 +1362,10 @@ export type Database = {
         };
         Update: {
           body?: string | null;
+          category?: never;
           created_at?: string;
           data?: NonNullable<Json>;
+          dedupe_key?: string | null;
           id?: string;
           read_at?: string | null;
           title?: string;
@@ -2030,6 +2077,7 @@ export type Database = {
         }[];
       };
       owns_business: { Args: { target_business_id: string }; Returns: boolean };
+      queue_scheduled_notifications: { Args: Record<PropertyKey, never>; Returns: number };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };
     Enums: {

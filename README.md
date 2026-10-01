@@ -376,6 +376,46 @@ after checking who the person is. In the database (`20261009100100_disputes.sql`
 - Evidence is checked by its first bytes and kept in the private `dispute-evidence` bucket, shown
   through short-lived signed links.
 
+## Notifications
+
+Everyone signed in has a bell in the header with their unread count, updated live over Realtime,
+and a notification centre at `/notifications` (All / Unread, a filter per type, "Mark all read").
+Admins get theirs inside the private dashboard; the header never links there. Opening a
+notification goes through `/notifications/go/<id>`, which marks it read and sends the person to
+the page it's about (`src/lib/notifications/links.ts`).
+
+| Event                       | Who is told                     | Sent by                                           |
+| --------------------------- | ------------------------------- | ------------------------------------------------- |
+| Registration                | The new customer or business    | Database trigger on sign-up                       |
+| Business submitted          | The owner and every admin       | `submitForReviewAction`                           |
+| Verification updates        | The business                    | Admin approve / reject / request info             |
+| Booking request             | The business                    | Booking actions                                   |
+| Accepted / declined         | The customer                    | Business booking actions                          |
+| Payment confirmation        | Both sides                      | Verified payment (`payment.confirmed`)            |
+| Cancellation                | The other side                  | Booking actions                                   |
+| New chat message            | The other side (one per chat)   | Database trigger on messages                      |
+| Booking reminder            | Both sides, within 24 hours     | Scheduled job (`booking.reminder`)                |
+| Service started / completed | The customer                    | Business booking actions                          |
+| Review request              | The customer, 1 hour after done | Scheduled job (`review.request`)                  |
+| Dispute updates             | Both sides (and admins)         | Opened, under review, messages, escalated, closed |
+
+The scheduled job is `queue_scheduled_notifications()`, run every 15 minutes by `pg_cron`
+(`20261010100000_notifications.sql`). Each reminder and review request has a `dedupe_key`, so it
+is sent once however often the job runs. Notifications are written by the server only; people can
+read and mark their own as read, nothing else.
+
+### Email, SMS and push
+
+Off for now; in-app is the only channel. The pieces to add them one at a time are in place:
+
+1. Write an adapter for the channel in `src/lib/notifications/channels.ts` (e.g. email through a
+   provider's API, with its key in an environment variable) and register it in `adapters`.
+2. Add the channel to the `notification_channels` platform setting, e.g. `["email"]`. From then on
+   every new notification is also queued in `notification_deliveries` (server-only).
+3. Set `CRON_SECRET` and have a scheduler call `POST /api/notifications/dispatch` with
+   `Authorization: Bearer <CRON_SECRET>` every minute or so. It sends what's queued and retries
+   failures up to 5 times. The route answers 404 while `CRON_SECRET` is unset.
+
 ## Business platform
 
 Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register

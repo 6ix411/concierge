@@ -138,18 +138,18 @@ export async function finalizePayment(
     await notify(
       {
         userId: confirmed.customer_id,
-        type: "booking.confirmed",
-        title: "Booking confirmed",
-        body: `Payment received for ${confirmed.reference}. You can now message the business.`,
+        type: "payment.confirmed",
+        title: `Payment received: ${confirmed.reference}`,
+        body: "Your booking is confirmed. You can now message the business.",
         data: { bookingId: confirmed.id },
       },
       ...(confirmed.businesses?.owner_id
         ? [
             {
               userId: confirmed.businesses.owner_id,
-              type: "booking.confirmed",
-              title: "New confirmed booking",
-              body: `${confirmed.reference} has been paid.`,
+              type: "payment.confirmed",
+              title: `Booking paid: ${confirmed.reference}`,
+              body: "The customer has paid. The booking is confirmed.",
               data: { bookingId: confirmed.id },
             },
           ]

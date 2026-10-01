@@ -7,7 +7,7 @@ import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { requireRole } from "@/lib/auth/session";
 import { lagosToday } from "@/lib/dates";
 import { AppError } from "@/lib/errors";
-import { notify } from "@/lib/notifications";
+import { activeAdminIds, notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -519,6 +519,16 @@ export async function submitForReviewAction(_prev: FormState, _formData: FormDat
       body: `${business.name} is waiting for review. We'll notify you when there's an update.`,
       data: { businessId: business.id },
     });
+    // The Concierge team reviews every registration before it goes public.
+    await notify(
+      ...(await activeAdminIds()).map((adminId) => ({
+        userId: adminId,
+        type: "business.submitted",
+        title: `New registration: ${business.name}`,
+        body: "Waiting for review and verification.",
+        data: { businessId: business.id },
+      })),
+    );
   } catch (error) {
     return toFormError(error, "We couldn't submit your business. Please try again.");
   }

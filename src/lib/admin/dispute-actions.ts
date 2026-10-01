@@ -51,6 +51,15 @@ export async function startDisputeReviewAction(_prev: FormState, formData: FormD
       targetId: dispute.id,
       metadata: { reference: dispute.booking.reference },
     });
+    await notify(
+      ...partiesOf(dispute.booking).map((userId) => ({
+        userId,
+        type: "dispute.under_review",
+        title: `Dispute on ${dispute.booking.reference} under review`,
+        body: "The Concierge team is looking into it. We may message you on the dispute for more details.",
+        data: { bookingId: dispute.booking.id },
+      })),
+    );
   } catch (error) {
     return toFormError(error, "We couldn't update the dispute. Please try again.");
   }
