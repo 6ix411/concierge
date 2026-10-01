@@ -76,8 +76,22 @@ export function canOpenDispute(
   return ageMs <= DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 }
 
-export type DisputeStatus = "open" | "under_review" | "resolved" | "rejected";
+export type DisputeStatus = "open" | "under_review" | "escalated" | "resolved" | "closed";
+/** The decisions an admin can make. A dispute can also end as "withdrawn" by whoever opened it. */
 export type DisputeOutcome = "business" | "customer" | "dismissed";
+
+/** The kind of problem, chosen when the dispute is opened. */
+export const disputeReasons = {
+  not_delivered: "The service wasn’t delivered",
+  poor_quality: "Poor quality or not as agreed",
+  no_show: "No-show or didn’t turn up on time",
+  late: "Very late or unfinished",
+  damage: "Damage or loss",
+  overcharged: "Charged more than agreed",
+  behaviour: "Rude or unsafe behaviour",
+  other: "Something else",
+} as const;
+export type DisputeReason = keyof typeof disputeReasons;
 
 export const disputeOutcomes: Record<
   DisputeOutcome,
@@ -97,7 +111,7 @@ export const disputeOutcomes: Record<
   dismissed: {
     label: "Dismiss",
     description: "Nothing changes. The booking goes back to where it was.",
-    disputeStatus: "rejected",
+    disputeStatus: "closed",
   },
 };
 
@@ -117,13 +131,25 @@ export const disputeStatusInfo: Record<
 > = {
   open: { label: "Open", tone: "danger" },
   under_review: { label: "Under review", tone: "accent" },
+  escalated: { label: "Escalated", tone: "danger" },
   resolved: { label: "Resolved", tone: "verified" },
-  rejected: { label: "Dismissed", tone: "neutral" },
+  closed: { label: "Closed", tone: "neutral" },
 };
 
+/** Still being handled: messages and evidence can be added, and the team can decide. */
+export const activeDisputeStatuses: DisputeStatus[] = ["open", "under_review", "escalated"];
+
 export function isDisputeOpen(status: DisputeStatus): boolean {
-  return status === "open" || status === "under_review";
+  return activeDisputeStatuses.includes(status);
 }
+
+/** How a finished dispute ended, in words for the customer and business. */
+export const disputeOutcomeLabels: Record<string, string> = {
+  business: "Decided for the business",
+  customer: "Decided for the customer",
+  dismissed: "Dismissed",
+  withdrawn: "Withdrawn",
+};
 
 // ---------------------------------------------------------------------------
 // Commission
@@ -210,6 +236,8 @@ const auditLabels: Record<string, string> = {
   "dispute.business": "Resolved a dispute for the business",
   "dispute.customer": "Resolved a dispute for the customer",
   "dispute.dismissed": "Dismissed a dispute",
+  "dispute.escalate": "Escalated a dispute",
+  "dispute.message": "Messaged a dispute",
   "review.hide": "Hid a review",
   "review.publish": "Published a review",
   "review.report_dismissed": "Kept a reported review",

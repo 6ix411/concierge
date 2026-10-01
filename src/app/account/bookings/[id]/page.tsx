@@ -219,7 +219,13 @@ export default async function BookingDetailPage({
           />
         )}
         {canCustomerCancel(booking) && <CancelBookingForm bookingId={booking.id} afterPayment={paid} />}
-        {dispute && <DisputeStatus dispute={dispute} viewer="customer" />}
+        {dispute && (
+          <DisputeStatus
+            dispute={dispute}
+            viewer="customer"
+            href={`/account/bookings/${booking.id}/dispute`}
+          />
+        )}
         {!dispute && canOpenDispute(booking) && (
           <ReportProblemForm bookingId={booking.id} otherParty={booking.businesses?.name ?? "the business"} />
         )}

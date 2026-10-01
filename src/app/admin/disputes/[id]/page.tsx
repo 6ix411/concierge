@@ -5,12 +5,28 @@ import { notFound } from "next/navigation";
 import { AdminActionForm } from "@/components/admin/action-form";
 import { Panel } from "@/components/admin/dashboard-widgets";
 import { BookingStatusBadge } from "@/components/bookings/booking-status-badge";
+import { DisputeComposer } from "@/components/disputes/dispute-composer";
+import { DisputeThread, EvidenceList } from "@/components/disputes/dispute-thread";
 import { Badge } from "@/components/ui";
-import { resolveDisputeAction, startDisputeReviewAction } from "@/lib/admin/dispute-actions";
-import { disputeOutcomes, disputeStatusInfo, isDisputeOpen, type DisputeOutcome } from "@/lib/admin/rules";
+import {
+  adminDisputeMessageAction,
+  escalateDisputeAction,
+  resolveDisputeAction,
+  startDisputeReviewAction,
+} from "@/lib/admin/dispute-actions";
+import {
+  disputeOutcomeLabels,
+  disputeOutcomes,
+  disputeReasons,
+  disputeStatusInfo,
+  isDisputeOpen,
+  type DisputeOutcome,
+  type DisputeReason,
+} from "@/lib/admin/rules";
 import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { bookingStatusLabels } from "@/lib/bookings/rules";
+import { getAdminDisputeThread } from "@/lib/disputes/queries";
 import { AppError } from "@/lib/errors";
 import { formatDateTime, formatNaira } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,7 +41,7 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
   const { data: dispute, error } = await createAdminClient()
     .from("disputes")
     .select(
-      `id, reason, description, status, outcome, resolution, resolved_at, refund_due_minor, previous_booking_status, created_at,
+      `id, reason, reason_code, description, status, outcome, resolution, resolved_at, refund_due_minor, previous_booking_status, escalated_at, escalation_reason, created_at,
        opener:users!disputes_opened_by_fkey(id, full_name, email, role),
        resolver:users!disputes_resolved_by_fkey(full_name),
        booking:bookings(id, reference, status, scheduled_start, total_minor, completed_at,
@@ -42,6 +58,7 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
     .filter((p) => p.status === "success" || p.status === "partially_refunded")
     .reduce((sum, p) => sum + p.amount_minor - p.refunded_minor, 0);
   const payout = booking.payouts[0];
+  const thread = await getAdminDisputeThread(dispute.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,15 +75,36 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
         <p className="text-sm text-muted">
           Reported by {dispute.opener?.full_name ?? dispute.opener?.email} (
           {dispute.opener?.role === "business" ? "the business" : "the customer"}) on{" "}
-          {formatDateTime(dispute.created_at)}
+          {formatDateTime(dispute.created_at)} ·{" "}
+          {disputeReasons[dispute.reason_code as DisputeReason] ?? "Something else"}
         </p>
       </div>
+
+      {dispute.status === "escalated" && dispute.escalation_reason && (
+        <p className="rounded-xl border border-danger/40 bg-danger/5 p-3 text-sm">
+          <span className="font-medium">Escalated</span>
+          {dispute.escalated_at && ` on ${formatDateTime(dispute.escalated_at)}`}: {dispute.escalation_reason}
+        </p>
+      )}
 
       {dispute.description && (
         <Panel title="What happened">
           <p className="text-sm whitespace-pre-line">{dispute.description}</p>
         </Panel>
       )}
+
+      <Panel title={`Evidence (${thread.evidence.length})`}>
+        <EvidenceList evidence={thread.evidence} />
+      </Panel>
+
+      <Panel title="Messages and history">
+        <p className="text-sm text-muted">
+          Both sides see your messages. Internal notes are for admins only. Nothing here can be edited or
+          deleted.
+        </p>
+        <DisputeThread thread={thread} viewer="admin" />
+        {open && <DisputeComposer disputeId={dispute.id} action={adminDisputeMessageAction} admin />}
+      </Panel>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Booking">
@@ -152,13 +190,24 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
           <p className="text-sm text-muted">
             Speak to both sides first. Your explanation is sent to the customer and the business.
           </p>
-          {dispute.status === "open" && (
-            <AdminActionForm
-              action={startDisputeReviewAction}
-              fields={{ disputeId: dispute.id }}
-              label="Start review"
-            />
-          )}
+          <div className="flex flex-wrap items-start gap-3">
+            {dispute.status === "open" && (
+              <AdminActionForm
+                action={startDisputeReviewAction}
+                fields={{ disputeId: dispute.id }}
+                label="Start review"
+              />
+            )}
+            {dispute.status !== "escalated" && (
+              <AdminActionForm
+                action={escalateDisputeAction}
+                fields={{ disputeId: dispute.id }}
+                label="Escalate"
+                variant="outline"
+                reason={{ label: "Why does it need escalating? (admins only)", required: true }}
+              />
+            )}
+          </div>
           <ul className="flex flex-col gap-4">
             {outcomeOrder.map((outcome) => (
               <li key={outcome} className="flex flex-col gap-2 rounded-xl border border-border p-3">
@@ -176,9 +225,7 @@ export default async function AdminDisputePage({ params }: PageProps<"/admin/dis
         </Panel>
       ) : (
         <Panel title="Decision">
-          <p className="text-sm font-medium">
-            {dispute.outcome ? disputeOutcomes[dispute.outcome as DisputeOutcome]?.label : "Closed"}
-          </p>
+          <p className="text-sm font-medium">{disputeOutcomeLabels[dispute.outcome ?? ""] ?? "Closed"}</p>
           {dispute.resolution && <p className="text-sm whitespace-pre-line">{dispute.resolution}</p>}
           <p className="text-xs text-muted">
             {dispute.resolver?.full_name && `By ${dispute.resolver.full_name} · `}

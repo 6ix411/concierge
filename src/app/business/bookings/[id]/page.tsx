@@ -129,7 +129,13 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
       )}
 
       <BookingResponse bookingId={booking.id} actions={actions} />
-      {dispute && <DisputeStatus dispute={dispute} viewer="business" />}
+      {dispute && (
+        <DisputeStatus
+          dispute={dispute}
+          viewer="business"
+          href={`/business/bookings/${booking.id}/dispute`}
+        />
+      )}
       {!dispute && canOpenDispute(booking) && (
         <ReportProblemForm bookingId={booking.id} otherParty={booking.customerName} />
       )}

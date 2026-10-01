@@ -13,8 +13,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const metadata: Metadata = { title: "Disputes" };
 
 const filters: { key: string; label: string; statuses: DisputeStatus[] }[] = [
-  { key: "open", label: "Open", statuses: ["open", "under_review"] },
-  { key: "closed", label: "Closed", statuses: ["resolved", "rejected"] },
+  { key: "open", label: "Active", statuses: ["open", "under_review", "escalated"] },
+  { key: "escalated", label: "Escalated", statuses: ["escalated"] },
+  { key: "resolved", label: "Resolved", statuses: ["resolved"] },
+  { key: "closed", label: "Closed", statuses: ["closed"] },
 ];
 
 export default async function AdminDisputesPage({ searchParams }: PageProps<"/admin/disputes">) {
@@ -37,7 +39,7 @@ export default async function AdminDisputesPage({ searchParams }: PageProps<"/ad
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Disputes"
-        description="Problems reported by customers or businesses. The oldest open dispute is first."
+        description="Disputes opened by customers or businesses. The oldest active dispute is first."
       />
       <FilterTabs
         label="Filter disputes"
@@ -50,7 +52,7 @@ export default async function AdminDisputesPage({ searchParams }: PageProps<"/ad
       />
       {disputes.length === 0 ? (
         <EmptyState
-          title={filter.key === "open" ? "No open disputes" : "No closed disputes yet"}
+          title={filter.key === "open" ? "No active disputes" : `No ${filter.label.toLowerCase()} disputes`}
           description={filter.key === "open" ? "Nothing needs settling right now." : undefined}
         />
       ) : (

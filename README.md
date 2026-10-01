@@ -345,6 +345,37 @@ reason and the photos. They can hide or republish a review, remove a single phot
 review. The reviewer or business is told the outcome and every action is in the audit log. The
 guidelines live in `src/lib/reviews/rules.ts` and are shown to customers when they write.
 
+## Disputes
+
+The customer or the business can open a dispute on a paid booking, or up to 14 days after it's
+completed, from the booking page. They choose a reason, write a short summary and a description of
+what happened, and can attach evidence. The booking becomes "In dispute" and the business's payout
+is held.
+
+Each dispute has its own page (`/account/bookings/<id>/dispute`, `/business/bookings/<id>/dispute`
+and the admin dispute page) with the booking details, all evidence, and a thread where both sides
+and the Concierge team write and add more files (photos, videos, PDFs; up to 5 files or 20 MB per
+message, 30 per dispute). Admins can also leave internal notes that the two sides never see.
+
+| Status       | Meaning                                                                         |
+| ------------ | ------------------------------------------------------------------------------- |
+| Open         | Just opened                                                                     |
+| Under review | An admin has picked it up                                                       |
+| Escalated    | Needs a senior decision or outside action; both sides are told, not why         |
+| Resolved     | An admin decided for the business or the customer                               |
+| Closed       | Ended without a decision for either side: dismissed, or withdrawn by its opener |
+
+**Nobody can manipulate the record.** Clients can't write to any dispute table; the server does,
+after checking who the person is. In the database (`20261009100100_disputes.sql`):
+
+- What was reported (booking, who opened it, reason, summary, description) can never be changed.
+- Status only moves forward, and a resolved or closed dispute is final.
+- Messages, evidence and the history (`dispute_events`, written by triggers with who made each
+  change) are append-only. A message or file must come from the booking's customer, its business
+  owner or an active admin, and only while the dispute is active.
+- Evidence is checked by its first bytes and kept in the private `dispute-evidence` bucket, shown
+  through short-lived signed links.
+
 ## Business platform
 
 Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register
