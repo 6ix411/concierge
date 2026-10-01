@@ -275,6 +275,25 @@ export function findTime(text: string): Found | null {
 }
 
 // ---------------------------------------------------------------------------
+// Search words
+// ---------------------------------------------------------------------------
+
+/** Words that appear in almost any request and would match almost any business. */
+const genericWords = new Set(
+  "service services servicing someone somebody anyone person provider providers company business vendor help fix fixing get find good best great cheap affordable reliable professional urgent urgently asap near me my you your need needs want looking please hire book booking".split(
+    " ",
+  ),
+);
+
+/** Drops generic words so "someone to service my generator" searches for "generator". */
+export function meaningfulQuery(text: string | null | undefined): string | null {
+  const words = (text ?? "")
+    .split(/\s+/)
+    .filter((word) => word && !genericWords.has(word.toLowerCase().replace(/[^\p{L}\p{N}-]/gu, "")));
+  return words.join(" ").trim() || null;
+}
+
+// ---------------------------------------------------------------------------
 // The parser
 // ---------------------------------------------------------------------------
 
@@ -359,6 +378,7 @@ export function parseServiceRequest(input: string, now: Date = new Date()): Serv
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+  const searchWords = meaningfulQuery(keywords) ?? "";
 
   return {
     query,
@@ -369,6 +389,6 @@ export function parseServiceRequest(input: string, now: Date = new Date()): Serv
     time: time?.value ?? null,
     guests,
     budgetMinor,
-    keywords,
+    keywords: searchWords,
   };
 }

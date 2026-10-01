@@ -3,7 +3,7 @@ import "server-only";
 import { AppError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
-import { resolvePlace, type Place } from "./request";
+import { meaningfulQuery, resolvePlace, type Place } from "./request";
 import type { Match, MatchSort } from "./types";
 
 export type MatchFilters = {
@@ -22,6 +22,8 @@ export type MatchFilters = {
   /** Hides businesses that only list prices above it. */
   maxPriceMinor?: number | null;
   sort?: MatchSort;
+  /** Only these businesses (still subject to the eligibility rules). */
+  ids?: string[] | null;
   limit?: number;
   offset?: number;
 };
@@ -42,7 +44,7 @@ function placeArgs(location: MatchFilters["location"]) {
 export async function findMatches(filters: MatchFilters): Promise<Match[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("match_businesses", {
-    p_query: filters.query || undefined,
+    p_query: meaningfulQuery(filters.query) ?? undefined,
     p_category: filters.category || undefined,
     ...placeArgs(filters.location),
     p_date: filters.date ?? undefined,
@@ -53,6 +55,7 @@ export async function findMatches(filters: MatchFilters): Promise<Match[]> {
     p_sort: filters.sort ?? "match",
     p_limit: filters.limit ?? 20,
     p_offset: filters.offset ?? 0,
+    p_ids: filters.ids ?? undefined,
   });
   if (error) throw new AppError("INTERNAL", "Search is unavailable right now.", { cause: error });
   return (data ?? []) as Match[];

@@ -27,7 +27,7 @@ export function BookingForm({
   quoteMode: boolean;
   minDate: string;
   maxDate: string;
-  defaults: { addressLine?: string; area?: string; state?: string };
+  defaults: { addressLine?: string; area?: string; state?: string; date?: string };
 }) {
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const [selected, setSelected] = useState<Record<string, number>>(
@@ -184,6 +184,7 @@ export function BookingForm({
           type="date"
           min={minDate}
           max={maxDate}
+          defaultValue={defaults.date}
           required
           error={state.fieldErrors?.date}
         />

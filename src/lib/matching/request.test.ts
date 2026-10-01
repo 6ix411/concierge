@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findDate, parseServiceRequest, resolvePlace } from "./request";
+import { findDate, meaningfulQuery, parseServiceRequest, resolvePlace } from "./request";
 
 // Thursday 1 October 2026, midday in Lagos.
 const now = new Date("2026-10-01T11:00:00Z");
@@ -129,5 +129,13 @@ describe("resolvePlace", () => {
 
   it("returns null for places it doesn't know", () => {
     expect(resolvePlace("Timbuktu")).toBeNull();
+  });
+});
+
+describe("meaningfulQuery", () => {
+  it("drops words that would match any business", () => {
+    expect(meaningfulQuery("Someone to service my generator")).toBe("to generator");
+    expect(meaningfulQuery("someone please")).toBeNull();
+    expect(parseServiceRequest("Someone to service my generator in Ikeja", now).keywords).toBe("generator");
   });
 });

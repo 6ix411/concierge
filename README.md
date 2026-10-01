@@ -185,9 +185,8 @@ update public.users set role = 'admin' where email = 'you@example.com';
 | My bookings, messages, reviews | `/account/bookings`, `/account/messages`, `/account/reviews` |
 | Account and settings           | `/account`, `/account/settings`                              |
 
-- **Concierge.** Turns the request into structured details and matches them with the search and
-  matching engine below. It never searches the web. Until the AI stage it reads requests with rules
-  (`src/lib/matching/request.ts`), so it works without an API key.
+- **Concierge.** A chat that finds, compares and explains providers, then opens the booking form.
+  See "AI concierge" below.
 - **Bookings.** Prices always come from the database, never the form. A booking moves
   `requested → accepted → confirmed` (paid) `→ in_progress → completed`; quote requests go through
   `quote_requested → quoted → accepted` first. Customers can cancel before paying, or up to 24 hours
@@ -241,6 +240,33 @@ suspended → under review. Only the server changes a status, after checking the
   documents through short-lived links, requests more information, accepts or rejects documents and
   approves, rejects, suspends or reinstates the business. Every decision is logged and the owner is
   notified.
+
+## AI concierge
+
+`/concierge` is a conversation. The concierge works out what the customer needs (asking one short
+question when the service or area is missing), searches, compares, explains why each provider fits
+and what it misses, and offers a "Start booking" button that opens the booking form with the service
+and date filled in. The customer always completes the booking and payment themselves.
+
+- **With `ANTHROPIC_API_KEY`** it uses Claude (`ANTHROPIC_MODEL`) with four tools
+  (`src/lib/concierge/tools.ts`): `search_providers`, `get_provider_details`, `compare_providers`
+  and `reply_to_customer`. The tools only read the matching engine, so they only ever see eligible
+  businesses on Concierge. There is no web search and no tool that books or pays.
+- **Without a key** (or if the AI service fails) it uses built-in rules over the same tools, so the
+  concierge always works.
+- **Every reply is checked** (`src/lib/concierge/guard.ts`) before the customer sees it. It is
+  rejected if it shows a provider no tool returned, names a business the tools didn't return
+  (including unapproved ones), quotes a price or rating the tools didn't give, claims availability
+  that wasn't checked, says a booking or payment happened, or mentions searching the internet. The
+  model gets one more chance to fix it; after that the customer gets a reply built from the
+  database alone. Provider cards, prices and availability are always rendered from database rows,
+  never from the model's text.
+- **Nobody fits:** the customer is told "No suitable registered provider is currently available for
+  your requirements." Real close options can still be shown, each saying what it misses.
+- **History:** signed-in customers' conversations are saved (`ai_conversations`, `ai_messages`,
+  written by the server, readable only by their owner) and can be reopened. Visitors' history lives in
+  the page. Messages are rate limited per user or network address.
+- The concierge never takes part in customer–business chat.
 
 ## Search and matching engine
 

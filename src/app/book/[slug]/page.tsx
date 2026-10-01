@@ -21,7 +21,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
   const business = await getBusinessBySlug(slug);
   if (!business) notFound();
 
-  const { service, quote } = await searchParams;
+  const { service, quote, date } = await searchParams;
   const preselected = (Array.isArray(service) ? service : service ? [service] : []).filter((id) =>
     business.services.some((s) => s.id === id),
   );
@@ -37,6 +37,11 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
   // Earliest day that respects the business's notice period (the server checks the exact time).
   const minDate = addDays(today, Math.max(1, Math.ceil(business.min_notice_hours / 24)));
   const maxDate = addDays(today, business.booking_window_days);
+  // The concierge can hand over a date; it's only a starting value the customer can change.
+  const presetDate =
+    typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= minDate && date <= maxDate
+      ? date
+      : undefined;
   return (
     <Container className="grid gap-8 py-6 sm:py-10 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col gap-6">
@@ -70,6 +75,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
               addressLine: profile?.address_line ?? undefined,
               area: profile?.city ?? undefined,
               state: profile?.state ?? undefined,
+              date: presetDate,
             }}
           />
         )}
