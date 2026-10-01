@@ -4,12 +4,16 @@ import { cache } from "react";
 
 import { AppError } from "@/lib/errors";
 import { findMatches } from "@/lib/matching/engine";
+import { signReviewPhotos } from "@/lib/reviews/photos";
 import type { Match } from "@/lib/matching/types";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 export type SearchResult = Match;
-export type PublicReview = Database["public"]["Functions"]["get_public_reviews"]["Returns"][number];
+export type PublicReview = Database["public"]["Functions"]["get_public_reviews"]["Returns"][number] & {
+  /** Signed links to the review's photos. */
+  photo_urls: string[];
+};
 
 export type SearchParams = {
   query?: string | null;
@@ -106,13 +110,20 @@ export const getBusinessBySlug = cache(async (slug: string) => {
       throw new AppError("INTERNAL", "Could not load this business.", { cause: result.error });
   }
 
+  // Only published reviews of an approved business come back, so their photos are safe to show.
+  const signed = await signReviewPhotos((reviews.data ?? []).flatMap((r) => r.photo_paths ?? []));
+  const publicReviews: PublicReview[] = (reviews.data ?? []).map((review) => ({
+    ...review,
+    photo_urls: (review.photo_paths ?? []).flatMap((path) => signed.get(path) ?? []),
+  }));
+
   return {
     ...business,
     services: services.data ?? [],
     areas: areas.data ?? [],
     availability: availability.data ?? [],
     portfolio: portfolio.data ?? [],
-    reviews: reviews.data ?? [],
+    reviews: publicReviews,
     stats: {
       completedBookings: stats.data?.completed_bookings ?? 0,
       minPriceMinor: stats.data?.min_price_minor ?? null,

@@ -319,6 +319,32 @@ fails if any concierge file references the chat tables). The platform only provi
 - Database rules enforce it: only the customer and the business owner can send, even with full
   database access; blocked or restricted chats refuse messages; senders can't set moderation flags.
 
+## Reviews and ratings
+
+Only a customer whose own booking is **completed** can review it, once. The checks run in the
+server action and again in the database (`check_review_booking`), so they hold even if the app is
+bypassed:
+
+- Customers can't write to `reviews` directly; the server inserts after checking the booking.
+- The booking must belong to the reviewer and be completed; `reviews.booking_id` is unique, so a
+  booking gets one review. A business owner can never review their own business.
+- Leaving a review moves the booking to `reviewed`, and the business rating only counts published
+  reviews.
+
+**Photos.** Up to 4 JPG, PNG or WebP photos, 5 MB each. The server checks each file's first bytes
+(a renamed file is refused), then stores it in the private `review-photos` bucket. Pages show
+short-lived signed links, and only for reviews the viewer can already see: a hidden review's photos
+disappear from the public profile. `serverActions.bodySizeLimit` and `proxyClientMaxBodySize` are
+raised to 21 MB in `next.config.ts` for these uploads.
+
+**Businesses** reply publicly from Business → Reviews, or report a review that breaks the guidelines.
+A reported review stays up until an admin decides; businesses can't edit or remove reviews.
+
+**Admins** (Reviews in the admin dashboard) see reported reviews under "Reported", the business's
+reason and the photos. They can hide or republish a review, remove a single photo, or keep a reported
+review. The reviewer or business is told the outcome and every action is in the audit log. The
+guidelines live in `src/lib/reviews/rules.ts` and are shown to customers when they write.
+
 ## Business platform
 
 Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register

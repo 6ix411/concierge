@@ -2,12 +2,13 @@ import { formatDate } from "@/lib/format";
 import type { PublicReview } from "@/lib/marketplace/queries";
 
 import { Stars } from "./rating";
+import { ReviewPhotos } from "./review-photos";
 
 export function ReviewList({ reviews, businessName }: { reviews: PublicReview[]; businessName: string }) {
   if (reviews.length === 0) {
     return (
       <p className="text-sm text-muted">
-        No reviews yet. Reviews come only from customers who booked through Concierge.
+        No reviews yet. Reviews come only from customers who completed a booking through Concierge.
       </p>
     );
   }
@@ -23,6 +24,7 @@ export function ReviewList({ reviews, businessName }: { reviews: PublicReview[];
             <Stars value={review.rating} />
           </div>
           {review.comment && <p className="mt-2 text-sm leading-relaxed">{review.comment}</p>}
+          <ReviewPhotos urls={review.photo_urls} label={`Photo from ${review.reviewer_name}`} />
           {review.business_reply && (
             <div className="mt-3 rounded-xl bg-surface-muted p-3 text-sm">
               <p className="font-medium">Reply from {businessName}</p>

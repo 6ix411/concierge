@@ -1,34 +1,45 @@
 import type { Metadata } from "next";
 
 import { ReviewReplyForm } from "@/components/business/review-reply-form";
+import { ReviewReportForm } from "@/components/business/review-report-form";
 import { Stars } from "@/components/marketplace/rating";
+import { ReviewPhotos } from "@/components/marketplace/review-photos";
 import { EmptyState } from "@/components/ui";
 import { requireOwnBusiness } from "@/lib/business/queries";
 import { getCounterpartNames } from "@/lib/chat/queries";
 import { AppError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { createClient } from "@/lib/supabase/server";
+import { photosForReviews } from "@/lib/reviews/photos";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Reviews" };
 
 export default async function BusinessReviewsPage() {
   const { business } = await requireOwnBusiness();
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  // Server-side read scoped to the owner's business: it includes whether they reported a review.
+  const { data, error } = await createAdminClient()
     .from("reviews")
-    .select("id, rating, comment, business_reply, created_at, status, customer_id, bookings(reference)")
+    .select(
+      "id, rating, comment, business_reply, created_at, status, reported_at, customer_id, bookings(reference)",
+    )
     .eq("business_id", business.id)
     .order("created_at", { ascending: false });
   if (error) throw new AppError("INTERNAL", "Could not load your reviews.", { cause: error });
   const reviews = data ?? [];
-  const names = await getCounterpartNames(reviews.map((r) => r.customer_id));
+  const [names, photos] = await Promise.all([
+    getCounterpartNames(reviews.map((r) => r.customer_id)),
+    photosForReviews(reviews.map((r) => r.id)),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
-          <p className="mt-1 text-muted">Reviews come from customers after a completed booking.</p>
+          <p className="mt-1 text-muted">
+            Only customers with a completed booking can review you, once per booking. You can reply publicly,
+            or report a review that breaks the guidelines.
+          </p>
         </div>
         {business.rating_count > 0 && (
           <div className="flex items-center gap-2">
@@ -51,6 +62,7 @@ export default async function BusinessReviewsPage() {
               </div>
               <Stars value={review.rating} />
               {review.comment && <p className="text-sm">{review.comment}</p>}
+              <ReviewPhotos urls={(photos.get(review.id) ?? []).map((p) => p.url)} />
               <p className="text-xs text-muted">
                 Booking {review.bookings?.reference}
                 {review.status === "hidden" && " · Hidden by the Concierge team"}
@@ -61,7 +73,15 @@ export default async function BusinessReviewsPage() {
                   {review.business_reply}
                 </p>
               )}
-              <ReviewReplyForm reviewId={review.id} existing={review.business_reply} />
+              <div className="flex flex-wrap items-start gap-2">
+                <ReviewReplyForm reviewId={review.id} existing={review.business_reply} />
+                {review.status === "published" &&
+                  (review.reported_at ? (
+                    <p className="py-1.5 text-sm text-muted">Reported. The Concierge team is checking it.</p>
+                  ) : (
+                    <ReviewReportForm reviewId={review.id} />
+                  ))}
+              </div>
             </li>
           ))}
         </ul>
