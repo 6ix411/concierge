@@ -56,7 +56,7 @@ export const businessDetailsSchema = z
         `Describe your business in at least ${MIN_DESCRIPTION_LENGTH} characters so customers know what you do.`,
       )
       .max(5000),
-    categoryId: z.uuid("Choose a category."),
+    categoryId: z.guid("Choose a category."),
     phone: optionalText(30).transform((value, ctx) => {
       if (!value) return undefined;
       const phone = normalizeNigerianPhone(value);
@@ -92,7 +92,7 @@ export type ServiceKind = (typeof serviceKinds)[number];
 
 export const serviceSchema = z
   .object({
-    serviceId: z.uuid().optional(),
+    serviceId: z.guid().optional(),
     name: z.string().trim().min(2, "Enter a name for this service.").max(120),
     description: optionalText(3000),
     categoryId: z
@@ -231,17 +231,17 @@ export const portfolioItemSchema = z.object({
 });
 
 export const quoteSchema = z.object({
-  bookingId: z.uuid(),
+  bookingId: z.guid(),
   amount: nairaAmount,
   notes: optionalText(3000),
 });
 
 export const bookingDecisionSchema = z.object({
-  bookingId: z.uuid(),
+  bookingId: z.guid(),
   reason: optionalText(500),
 });
 
 export const reviewReplySchema = z.object({
-  reviewId: z.uuid(),
+  reviewId: z.guid(),
   reply: z.string().trim().min(2, "Write a reply.").max(2000),
 });

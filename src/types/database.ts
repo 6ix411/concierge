@@ -739,7 +739,10 @@ export type Database = {
           description: string | null;
           id: string;
           opened_by: string;
+          outcome: string | null;
+          previous_booking_status: Database["public"]["Enums"]["booking_status"] | null;
           reason: string;
+          refund_due_minor: number;
           resolution: string | null;
           resolved_at: string | null;
           resolved_by: string | null;
@@ -752,7 +755,10 @@ export type Database = {
           description?: string | null;
           id?: string;
           opened_by: string;
+          outcome?: string | null;
+          previous_booking_status?: Database["public"]["Enums"]["booking_status"] | null;
           reason: string;
+          refund_due_minor?: number;
           resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
@@ -765,7 +771,10 @@ export type Database = {
           description?: string | null;
           id?: string;
           opened_by?: string;
+          outcome?: string | null;
+          previous_booking_status?: Database["public"]["Enums"]["booking_status"] | null;
           reason?: string;
+          refund_due_minor?: number;
           resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
@@ -1293,6 +1302,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
       current_user_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];

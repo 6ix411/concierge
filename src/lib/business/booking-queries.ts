@@ -43,7 +43,7 @@ export async function getBusinessBooking(bookingId: string, businessId: string) 
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, scheduled_start, scheduled_end, address_line, city, state, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor), conversations(id)",
+      "id, reference, status, scheduled_start, scheduled_end, address_line, city, state, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor), conversations(id), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at)",
     )
     .eq("id", bookingId)
     .eq("business_id", businessId)

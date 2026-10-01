@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
+import { recordPayout } from "@/lib/bookings/payouts";
 import type { BookingStatus } from "@/lib/bookings/rules";
 import { AppError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
@@ -12,7 +13,6 @@ import type { Database } from "@/types/database";
 
 import { requireOwnBusinessForAction, toFormError } from "./action-utils";
 import { businessBookingActions, type BusinessBookingAction } from "./booking-rules";
-import { commissionFor } from "./earnings";
 import { bookingDecisionSchema, quoteSchema } from "./schemas";
 
 type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
@@ -118,23 +118,7 @@ export async function updateBookingStatusAction(
     await updateIfStatus(booking.id, business.id, booking.status, changes);
 
     // A completed job creates the business's payout (paid out in the payments stage).
-    if (action === "complete") {
-      const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
-      const { error } = await createAdminClient()
-        .from("payouts")
-        .insert({
-          business_id: business.id,
-          booking_id: booking.id,
-          gross_minor: booking.total_minor,
-          commission_minor: commission,
-          amount_minor: booking.total_minor - commission,
-        });
-      // 23505: a payout already exists for this booking.
-      if (error && error.code !== "23505")
-        throw new AppError("INTERNAL", "Booking completed, but the payout wasn't recorded.", {
-          cause: error,
-        });
-    }
+    if (action === "complete") await recordPayout(booking);
 
     const message = customerMessages[action];
     await notify({

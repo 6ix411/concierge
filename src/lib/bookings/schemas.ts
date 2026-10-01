@@ -12,7 +12,7 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a time.");
 export const bookingRequestSchema = z
   .object({
     mode: z.enum(["book", "quote"]),
-    serviceIds: z.array(z.uuid()).max(10),
+    serviceIds: z.array(z.guid()).max(10),
     quantities: z.record(z.string(), z.coerce.number().int().min(1).max(100)),
     date,
     time,
@@ -35,8 +35,8 @@ export const bookingRequestSchema = z
   });
 export type BookingRequest = z.infer<typeof bookingRequestSchema>;
 
-export const rescheduleSchema = z.object({ bookingId: z.uuid(), date, time });
+export const rescheduleSchema = z.object({ bookingId: z.guid(), date, time });
 export const cancelSchema = z.object({
-  bookingId: z.uuid(),
+  bookingId: z.guid(),
   reason: z.string().trim().max(500).optional(),
 });

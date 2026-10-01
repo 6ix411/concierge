@@ -5,7 +5,10 @@ import { notFound } from "next/navigation";
 
 import { BookingResponse } from "@/components/business/booking-response";
 import { BusinessBookingStatus } from "@/components/business/business-booking-list";
+import { DisputeStatus } from "@/components/disputes/dispute-status";
+import { ReportProblemForm } from "@/components/disputes/report-problem";
 import { LinkButton } from "@/components/ui";
+import { canOpenDispute } from "@/lib/admin/rules";
 import { getBusinessBooking } from "@/lib/business/booking-queries";
 import { businessBookingActions } from "@/lib/business/booking-rules";
 import { commissionFor, paidStatuses } from "@/lib/business/earnings";
@@ -24,6 +27,7 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
   const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
   const isPaid = paidStatuses.includes(booking.status);
   const conversationId = booking.conversations?.id ?? null;
+  const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const location = [booking.address_line, booking.city, booking.state].filter(Boolean).join(", ");
 
   return (
@@ -113,6 +117,10 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
       )}
 
       <BookingResponse bookingId={booking.id} actions={actions} />
+      {dispute && <DisputeStatus dispute={dispute} viewer="business" />}
+      {!dispute && canOpenDispute(booking) && (
+        <ReportProblemForm bookingId={booking.id} otherParty={booking.customerName} />
+      )}
     </div>
   );
 }

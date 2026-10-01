@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { adminBusinessDecisions, type AdminBusinessDecision } from "./business-review";
 
 const decisionSchema = z.object({
-  businessId: z.uuid(),
+  businessId: z.guid(),
   reason: z
     .string()
     .trim()
@@ -101,7 +101,7 @@ export async function decideBusinessAction(
 }
 
 const requestSchema = z.object({
-  businessId: z.uuid(),
+  businessId: z.guid(),
   documentType: z
     .enum(verificationDocumentTypes)
     .optional()
@@ -173,7 +173,7 @@ export async function requestVerificationInfoAction(
 }
 
 const documentDecisionSchema = z.object({
-  verificationId: z.uuid(),
+  verificationId: z.guid(),
   notes: z
     .string()
     .trim()

@@ -12,7 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const reviewSchema = z.object({
-  bookingId: z.uuid(),
+  bookingId: z.guid(),
   rating: z.coerce.number().int().min(1, "Choose a rating.").max(5),
   comment: z.string().trim().max(2000).optional(),
 });

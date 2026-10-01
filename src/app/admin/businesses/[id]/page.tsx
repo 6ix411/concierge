@@ -9,11 +9,13 @@ import {
   RequestInfoForm,
 } from "@/components/admin/business-review-forms";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { Container } from "@/components/layout/container";
+import { CommissionForm } from "@/components/admin/commission-form";
 import { BusinessAvatar } from "@/components/marketplace/business-avatar";
 import { priceLabel } from "@/components/marketplace/service-list";
 import { Badge } from "@/components/ui";
 import { decisionsFor } from "@/lib/admin/business-review";
+import { auditLabel, COMMISSION_SETTING, formatBps } from "@/lib/admin/rules";
+import { setBusinessCommissionAction } from "@/lib/admin/settings-actions";
 import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { documentStatusInfo, documentTypeLabels } from "@/lib/business/verification";
@@ -42,45 +44,49 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
   const { data: business, error } = await db
     .from("businesses")
     .select(
-      "id, name, slug, description, email, phone, website, address_line, city, state, logo_path, status, status_reason, is_verified, submitted_at, reviewed_at, created_at, owner:users!businesses_owner_id_fkey(full_name, email), primary_category:service_categories(name)",
+      "id, owner_id, name, slug, description, email, phone, website, address_line, city, state, logo_path, status, status_reason, commission_rate_bps, is_verified, submitted_at, reviewed_at, created_at, owner:users!businesses_owner_id_fkey(full_name, email), primary_category:service_categories(name)",
     )
     .eq("id", id)
     .maybeSingle();
   if (error) throw new AppError("INTERNAL", "Could not load the business.", { cause: error });
   if (!business) notFound();
 
-  const [services, areas, hours, portfolio, documents, requests, history] = await Promise.all([
-    db
-      .from("business_services")
-      .select("id, name, pricing_type, price_minor, is_package, is_addon, is_active")
-      .eq("business_id", id)
-      .order("sort_order"),
-    db.from("service_areas").select("id, state, area").eq("business_id", id),
-    db
-      .from("business_availability")
-      .select("day_of_week, start_time, end_time")
-      .eq("business_id", id)
-      .not("day_of_week", "is", null)
-      .order("day_of_week"),
-    db.from("business_portfolio").select("id").eq("business_id", id),
-    db
-      .from("business_verifications")
-      .select("id, document_type, document_number, notes, document_path, status, review_notes, created_at")
-      .eq("business_id", id)
-      .order("created_at", { ascending: false }),
-    db
-      .from("verification_requests")
-      .select("id, document_type, message, status, created_at")
-      .eq("business_id", id)
-      .order("created_at", { ascending: false }),
-    db
-      .from("admin_actions")
-      .select("id, action, reason, created_at")
-      .eq("target_type", "businesses")
-      .eq("target_id", id)
-      .order("created_at", { ascending: false })
-      .limit(20),
-  ]);
+  const [services, areas, hours, portfolio, documents, requests, history, setting, bookingCount] =
+    await Promise.all([
+      db
+        .from("business_services")
+        .select("id, name, pricing_type, price_minor, is_package, is_addon, is_active")
+        .eq("business_id", id)
+        .order("sort_order"),
+      db.from("service_areas").select("id, state, area").eq("business_id", id),
+      db
+        .from("business_availability")
+        .select("day_of_week, start_time, end_time")
+        .eq("business_id", id)
+        .not("day_of_week", "is", null)
+        .order("day_of_week"),
+      db.from("business_portfolio").select("id").eq("business_id", id),
+      db
+        .from("business_verifications")
+        .select("id, document_type, document_number, notes, document_path, status, review_notes, created_at")
+        .eq("business_id", id)
+        .order("created_at", { ascending: false }),
+      db
+        .from("verification_requests")
+        .select("id, document_type, message, status, created_at")
+        .eq("business_id", id)
+        .order("created_at", { ascending: false }),
+      db
+        .from("admin_actions")
+        .select("id, action, reason, created_at")
+        .eq("target_type", "businesses")
+        .eq("target_id", id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      db.from("platform_settings").select("value").eq("key", COMMISSION_SETTING).maybeSingle(),
+      db.from("bookings").select("id", { count: "exact", head: true }).eq("business_id", id),
+    ]);
+  const platformBps = Number(setting.data?.value ?? 1000);
 
   const paths = (documents.data ?? []).map((d) => d.document_path);
   const signed = new Map<string, string>();
@@ -93,9 +99,9 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
   }
 
   return (
-    <Container className="flex flex-col gap-6 py-8">
+    <div className="flex flex-col gap-6">
       <Link href={adminHref("/businesses")} className="text-sm text-muted hover:underline">
-        Businesses
+        Providers
       </Link>
       <div className="flex flex-wrap items-center gap-3">
         <BusinessAvatar name={business.name} logoPath={business.logo_path} size="md" />
@@ -173,6 +179,46 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
         </Section>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section title="Commission">
+          <p className="text-sm text-muted">
+            {business.commission_rate_bps === null
+              ? `Uses the platform rate, currently ${formatBps(platformBps)}.`
+              : `Custom rate: ${formatBps(business.commission_rate_bps)} (platform rate is ${formatBps(platformBps)}).`}{" "}
+            Changes apply to new bookings only.
+          </p>
+          <CommissionForm
+            action={setBusinessCommissionAction}
+            businessId={business.id}
+            defaultValue={
+              business.commission_rate_bps === null ? "" : String(business.commission_rate_bps / 100)
+            }
+            optional
+          />
+        </Section>
+        <Section title="Activity">
+          <p className="text-sm">
+            <Link
+              href={adminHref(`/bookings?business=${business.id}`)}
+              className="font-medium hover:underline"
+            >
+              {bookingCount.count ?? 0} booking{bookingCount.count === 1 ? "" : "s"}
+            </Link>
+            {" · "}
+            <Link
+              href={adminHref(`/reviews?business=${business.id}`)}
+              className="font-medium hover:underline"
+            >
+              Reviews
+            </Link>
+            {" · "}
+            <Link href={adminHref(`/users/${business.owner_id}`)} className="font-medium hover:underline">
+              Owner account
+            </Link>
+          </p>
+        </Section>
+      </div>
+
       <Section title="Verification documents">
         {(documents.data ?? []).length === 0 ? (
           <p className="text-sm text-muted">No documents uploaded.</p>
@@ -242,7 +288,7 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
             {(history.data ?? []).map((entry) => (
               <li key={entry.id} className="flex justify-between gap-3">
                 <span>
-                  {entry.action.replace("business.", "").replace("_", " ")}
+                  {auditLabel(entry.action)}
                   {entry.reason && <span className="text-muted"> · {entry.reason}</span>}
                 </span>
                 <span className="shrink-0 text-muted">{formatDateTime(entry.created_at)}</span>
@@ -251,6 +297,6 @@ export default async function AdminBusinessPage({ params }: PageProps<"/admin/bu
           </ul>
         </Section>
       )}
-    </Container>
+    </div>
   );
 }

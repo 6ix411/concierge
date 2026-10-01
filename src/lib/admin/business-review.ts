@@ -11,7 +11,7 @@ export const adminBusinessDecisions: Record<
   approve: { from: ["pending", "under_review"], to: "approved", label: "Approve" },
   reject: { from: ["pending", "under_review"], to: "rejected", label: "Reject" },
   suspend: { from: ["approved"], to: "suspended", label: "Suspend" },
-  reinstate: { from: ["suspended"], to: "approved", label: "Reinstate" },
+  reinstate: { from: ["suspended"], to: "approved", label: "Reactivate" },
 };
 
 export function decisionsFor(status: BusinessStatus): AdminBusinessDecision[] {
