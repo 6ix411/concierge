@@ -92,6 +92,8 @@ Migrations live in `supabase/migrations` and run in order:
 | `storage`                | Storage buckets and who can upload or read each one               |
 | `reference_data`         | Platform settings every environment needs                         |
 | `customer_platform`      | Approved-only search, public reviews, booking counterpart names   |
+| `business_status_values` | Business statuses: pending, under review                          |
+| `business_onboarding`    | Status flow, add-ons, booking settings, verification requests     |
 
 Money is stored as whole kobo (`bigint`), never as decimals.
 
@@ -194,6 +196,50 @@ update public.users set role = 'admin' where email = 'you@example.com';
   many times the callback is hit.
 - **Chat.** Opens when a booking is confirmed and is only between the customer and the business.
   Messages arrive live through Supabase Realtime. The AI never reads, writes or summarises chat.
+
+## Business platform
+
+Providers start at **Become a Provider** (`/become-a-provider`), sign up as a business and register
+in six steps at `/business/setup`: business information, service areas, services (services,
+packages, add-ons and prices), availability, portfolio (logo, photos, videos) and verification
+documents. They can save and come back at any time, then submit for review.
+
+| Status         | Meaning                                             | Visible to customers and the AI |
+| -------------- | --------------------------------------------------- | ------------------------------- |
+| `draft`        | Registration not submitted yet                      | No                              |
+| `pending`      | Submitted, waiting for the team                     | No                              |
+| `under_review` | The team is checking it or asked for more documents | No                              |
+| `approved`     | Live; marked verified                               | **Yes (only this one)**         |
+| `rejected`     | Not approved; the owner can fix it and resubmit     | No                              |
+| `suspended`    | Taken down by the team                              | No                              |
+
+A database trigger only allows these moves: draft → pending; pending → under review, approved or
+rejected; under review → approved or rejected; rejected → pending; approved ↔ suspended; approved or
+suspended → under review. Only the server changes a status, after checking the owner or admin.
+
+| Dashboard page         | Route                                           |
+| ---------------------- | ----------------------------------------------- |
+| Overview               | `/business`                                     |
+| Profile                | `/business/profile`                             |
+| Services and add-ons   | `/business/services`                            |
+| Availability and rules | `/business/availability`                        |
+| Bookings               | `/business/bookings`, `/business/bookings/[id]` |
+| Messages               | `/business/messages`                            |
+| Earnings               | `/business/earnings`                            |
+| Reviews (with replies) | `/business/reviews`                             |
+| Verification status    | `/business/verification`                        |
+
+- **One business per account.** Customer and provider accounts are separate.
+- **Uploads** go into the business's own storage folder; verification documents are private to the
+  owner and admins.
+- **Booking rules.** Owners can pause new bookings and set a notice period, how far ahead customers
+  can book and a daily limit. Booking requests are checked against them on the server.
+- **Earnings.** Completing a job records a payout: the booking total minus the platform commission
+  (`commission_rate_bps`, currently 10%). Paying it out comes with the payments stage.
+- **Admin review** (private admin link, `/businesses`): the team sees each registration, opens
+  documents through short-lived links, requests more information, accepts or rejects documents and
+  approves, rejects, suspends or reinstates the business. Every decision is logged and the owner is
+  notified.
 
 ## Error handling
 

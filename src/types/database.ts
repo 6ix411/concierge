@@ -380,6 +380,7 @@ export type Database = {
           duration_minutes: number | null;
           id: string;
           is_active: boolean;
+          is_addon: boolean;
           is_package: boolean;
           name: string;
           package_includes: string[];
@@ -397,6 +398,7 @@ export type Database = {
           duration_minutes?: number | null;
           id?: string;
           is_active?: boolean;
+          is_addon?: boolean;
           is_package?: boolean;
           name: string;
           package_includes?: string[];
@@ -414,6 +416,7 @@ export type Database = {
           duration_minutes?: number | null;
           id?: string;
           is_active?: boolean;
+          is_addon?: boolean;
           is_package?: boolean;
           name?: string;
           package_includes?: string[];
@@ -448,6 +451,7 @@ export type Database = {
           document_type: Database["public"]["Enums"]["verification_document_type"];
           id: string;
           notes: string | null;
+          request_id: string | null;
           review_notes: string | null;
           reviewed_at: string | null;
           reviewed_by: string | null;
@@ -463,6 +467,7 @@ export type Database = {
           document_type: Database["public"]["Enums"]["verification_document_type"];
           id?: string;
           notes?: string | null;
+          request_id?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
@@ -478,6 +483,7 @@ export type Database = {
           document_type?: Database["public"]["Enums"]["verification_document_type"];
           id?: string;
           notes?: string | null;
+          request_id?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
@@ -491,6 +497,13 @@ export type Database = {
             columns: ["business_id"];
             isOneToOne: false;
             referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "business_verifications_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "verification_requests";
             referencedColumns: ["id"];
           },
           {
@@ -511,7 +524,9 @@ export type Database = {
       };
       businesses: {
         Row: {
+          accepting_bookings: boolean;
           address_line: string | null;
+          booking_window_days: number;
           city: string | null;
           commission_rate_bps: number | null;
           cover_path: string | null;
@@ -523,22 +538,28 @@ export type Database = {
           latitude: number | null;
           logo_path: string | null;
           longitude: number | null;
+          max_bookings_per_day: number | null;
+          min_notice_hours: number;
           name: string;
           owner_id: string;
           phone: string | null;
           primary_category_id: string | null;
           rating_avg: number;
           rating_count: number;
+          reviewed_at: string | null;
           slug: string;
           state: string | null;
           status: Database["public"]["Enums"]["business_status"];
           status_reason: string | null;
+          submitted_at: string | null;
           updated_at: string;
           verified_at: string | null;
           website: string | null;
         };
         Insert: {
+          accepting_bookings?: boolean;
           address_line?: string | null;
+          booking_window_days?: number;
           city?: string | null;
           commission_rate_bps?: number | null;
           cover_path?: string | null;
@@ -550,22 +571,28 @@ export type Database = {
           latitude?: number | null;
           logo_path?: string | null;
           longitude?: number | null;
+          max_bookings_per_day?: number | null;
+          min_notice_hours?: number;
           name: string;
           owner_id: string;
           phone?: string | null;
           primary_category_id?: string | null;
           rating_avg?: number;
           rating_count?: number;
+          reviewed_at?: string | null;
           slug: string;
           state?: string | null;
           status?: Database["public"]["Enums"]["business_status"];
           status_reason?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
           verified_at?: string | null;
           website?: string | null;
         };
         Update: {
+          accepting_bookings?: boolean;
           address_line?: string | null;
+          booking_window_days?: number;
           city?: string | null;
           commission_rate_bps?: number | null;
           cover_path?: string | null;
@@ -577,16 +604,20 @@ export type Database = {
           latitude?: number | null;
           logo_path?: string | null;
           longitude?: number | null;
+          max_bookings_per_day?: number | null;
+          min_notice_hours?: number;
           name?: string;
           owner_id?: string;
           phone?: string | null;
           primary_category_id?: string | null;
           rating_avg?: number;
           rating_count?: number;
+          reviewed_at?: string | null;
           slug?: string;
           state?: string | null;
           status?: Database["public"]["Enums"]["business_status"];
           status_reason?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
           verified_at?: string | null;
           website?: string | null;
@@ -1206,6 +1237,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      verification_requests: {
+        Row: {
+          business_id: string;
+          created_at: string;
+          document_type: Database["public"]["Enums"]["verification_document_type"] | null;
+          id: string;
+          message: string;
+          requested_by: string;
+          resolved_at: string | null;
+          status: Database["public"]["Enums"]["verification_request_status"];
+          updated_at: string;
+        };
+        Insert: {
+          business_id: string;
+          created_at?: string;
+          document_type?: Database["public"]["Enums"]["verification_document_type"] | null;
+          id?: string;
+          message: string;
+          requested_by: string;
+          resolved_at?: string | null;
+          status?: Database["public"]["Enums"]["verification_request_status"];
+          updated_at?: string;
+        };
+        Update: {
+          business_id?: string;
+          created_at?: string;
+          document_type?: Database["public"]["Enums"]["verification_document_type"] | null;
+          id?: string;
+          message?: string;
+          requested_by?: string;
+          resolved_at?: string | null;
+          status?: Database["public"]["Enums"]["verification_request_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_requests_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_requests_requested_by_fkey";
+            columns: ["requested_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1293,7 +1375,7 @@ export type Database = {
         | "rejected"
         | "expired"
         | "disputed";
-      business_status: "draft" | "pending_review" | "approved" | "rejected" | "suspended";
+      business_status: "draft" | "pending" | "under_review" | "approved" | "rejected" | "suspended";
       conversation_status: "open" | "closed" | "locked";
       dispute_status: "open" | "under_review" | "resolved" | "rejected";
       payment_provider: "paystack" | "flutterwave" | "mock";
@@ -1313,6 +1395,7 @@ export type Database = {
         | "utility_bill"
         | "professional_license"
         | "other";
+      verification_request_status: "open" | "submitted" | "closed";
       verification_status: "pending" | "approved" | "rejected" | "needs_more_info";
     };
     CompositeTypes: {
@@ -1441,7 +1524,7 @@ export const Constants = {
         "expired",
         "disputed",
       ],
-      business_status: ["draft", "pending_review", "approved", "rejected", "suspended"],
+      business_status: ["draft", "pending", "under_review", "approved", "rejected", "suspended"],
       conversation_status: ["open", "closed", "locked"],
       dispute_status: ["open", "under_review", "resolved", "rejected"],
       payment_provider: ["paystack", "flutterwave", "mock"],
@@ -1462,6 +1545,7 @@ export const Constants = {
         "professional_license",
         "other",
       ],
+      verification_request_status: ["open", "submitted", "closed"],
       verification_status: ["pending", "approved", "rejected", "needs_more_info"],
     },
   },

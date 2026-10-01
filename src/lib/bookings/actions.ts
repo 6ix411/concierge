@@ -14,6 +14,7 @@ import type { Database } from "@/types/database";
 
 import {
   canCustomerAcceptQuote,
+  checkBookingWindow,
   canCustomerCancel,
   canCustomerReschedule,
   isWithinAvailability,
@@ -61,16 +62,18 @@ export async function createBookingAction(
     const supabase = await createClient();
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, name")
+      .select("id, name, accepting_bookings, min_notice_hours, booking_window_days, max_bookings_per_day")
       .eq("slug", businessSlug)
       .eq("status", "approved")
       .maybeSingle();
     if (!business) throw new AppError("NOT_FOUND", "This business isn't available for booking.");
+    if (!business.accepting_bookings)
+      return { status: "error", message: `${business.name} isn't taking new bookings right now.` };
 
     const [{ data: services, error: servicesError }, { data: availability }] = await Promise.all([
       supabase
         .from("business_services")
-        .select("id, name, pricing_type, price_minor, duration_minutes")
+        .select("id, name, pricing_type, price_minor, duration_minutes, is_addon")
         .eq("business_id", business.id)
         .eq("is_active", true),
       supabase
@@ -88,6 +91,14 @@ export async function createBookingAction(
       };
     }
 
+    const chosen = (services ?? []).filter((s) => input.serviceIds.includes(s.id));
+    if (chosen.length > 0 && chosen.every((s) => s.is_addon)) {
+      return {
+        status: "error",
+        fieldErrors: { serviceIds: "Add-ons are extras. Choose a main service too." },
+      };
+    }
+
     if (
       availability &&
       availability.length > 0 &&
@@ -97,6 +108,26 @@ export async function createBookingAction(
         status: "error",
         fieldErrors: { time: "The business isn't available then. Check their hours and pick another time." },
       };
+    }
+
+    const timing = checkBookingWindow(business, lagosDateTime(input.date, input.time));
+    if (timing) return { status: "error", fieldErrors: timing };
+
+    if (business.max_bookings_per_day) {
+      const dayStart = lagosDateTime(input.date, "00:00");
+      const { count } = await createAdminClient()
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", business.id)
+        .in("status", ["accepted", "confirmed", "in_progress"])
+        .gte("scheduled_start", dayStart.toISOString())
+        .lt("scheduled_start", new Date(dayStart.getTime() + 86_400_000).toISOString());
+      if ((count ?? 0) >= business.max_bookings_per_day) {
+        return {
+          status: "error",
+          fieldErrors: { date: "The business is fully booked that day. Pick another date." },
+        };
+      }
     }
 
     const quote = priceBooking(

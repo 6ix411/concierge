@@ -22,9 +22,11 @@ function duration(minutes: number | null) {
 export function ServiceList({
   services,
   bookHref,
+  bookable = true,
 }: {
   services: BusinessService[];
   bookHref: (id: string) => string;
+  bookable?: boolean;
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -59,14 +61,33 @@ export function ServiceList({
             ) : (
               <span />
             )}
-            <LinkButton
-              href={bookHref(service.id)}
-              size="sm"
-              variant={service.pricing_type === "quote_only" ? "outline" : "primary"}
-            >
-              {service.pricing_type === "quote_only" ? "Request quote" : "Book"}
-            </LinkButton>
+            {bookable && (
+              <LinkButton
+                href={bookHref(service.id)}
+                size="sm"
+                variant={service.pricing_type === "quote_only" ? "outline" : "primary"}
+              >
+                {service.pricing_type === "quote_only" ? "Request quote" : "Book"}
+              </LinkButton>
+            )}
           </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Optional extras, added on the booking form together with a main service. */
+export function AddonList({ addons }: { addons: BusinessService[] }) {
+  return (
+    <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
+      {addons.map((addon) => (
+        <li key={addon.id} className="flex items-start justify-between gap-3 p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{addon.name}</p>
+            {addon.description && <p className="mt-0.5 text-sm text-muted">{addon.description}</p>}
+          </div>
+          <p className="shrink-0 text-sm font-semibold">+ {priceLabel(addon)}</p>
         </li>
       ))}
     </ul>

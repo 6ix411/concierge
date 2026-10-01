@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/**" },
       { protocol: "http", hostname: "127.0.0.1", port: "54321", pathname: "/storage/v1/object/**" },
     ],
+    // Next blocks optimizing images from private IPs; allow it only when Supabase itself runs locally.
+    dangerouslyAllowLocalIP: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").startsWith("http://127.0.0.1"),
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

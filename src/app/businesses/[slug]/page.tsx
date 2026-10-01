@@ -8,7 +8,7 @@ import { AvailabilityTable } from "@/components/marketplace/availability-table";
 import { BusinessAvatar, BusinessCover } from "@/components/marketplace/business-avatar";
 import { Rating } from "@/components/marketplace/rating";
 import { ReviewList } from "@/components/marketplace/review-list";
-import { ServiceList } from "@/components/marketplace/service-list";
+import { AddonList, ServiceList } from "@/components/marketplace/service-list";
 import { VerifiedBadge } from "@/components/marketplace/verified-badge";
 import { LinkButton } from "@/components/ui";
 import { getBusinessBySlug } from "@/lib/marketplace/queries";
@@ -26,6 +26,9 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
   if (!business) notFound();
 
   const areas = [...new Set(business.areas.map((a) => a.area ?? a.city ?? a.state))];
+  const mainServices = business.services.filter((service) => !service.is_addon);
+  const addons = business.services.filter((service) => service.is_addon);
+  const paused = !business.accepting_bookings;
 
   return (
     <Container className="flex flex-col gap-8 py-4 pb-28 sm:py-8 md:pb-10">
@@ -56,14 +59,20 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
           </div>
           {business.description && <p className="max-w-2xl leading-relaxed">{business.description}</p>}
         </div>
-        <div className="hidden gap-2 md:flex">
-          <LinkButton href={`/book/${business.slug}`} size="lg">
-            Book now
-          </LinkButton>
-          <LinkButton href={`/book/${business.slug}?quote=1`} size="lg" variant="outline">
-            Request a quote
-          </LinkButton>
-        </div>
+        {paused ? (
+          <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted">
+            {business.name} isn’t taking new bookings right now. Check back soon.
+          </p>
+        ) : (
+          <div className="hidden gap-2 md:flex">
+            <LinkButton href={`/book/${business.slug}`} size="lg">
+              Book now
+            </LinkButton>
+            <LinkButton href={`/book/${business.slug}?quote=1`} size="lg" variant="outline">
+              Request a quote
+            </LinkButton>
+          </div>
+        )}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -72,10 +81,11 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
             <h2 id="services-heading" className="text-lg font-semibold">
               Services and prices
             </h2>
-            {business.services.length > 0 ? (
+            {mainServices.length > 0 ? (
               <ServiceList
-                services={business.services}
+                services={mainServices}
                 bookHref={(id) => `/book/${business.slug}?service=${id}`}
+                bookable={!paused}
               />
             ) : (
               <p className="text-sm text-muted">
@@ -83,6 +93,18 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
               </p>
             )}
           </section>
+
+          {addons.length > 0 && (
+            <section aria-labelledby="addons-heading" className="flex flex-col gap-3">
+              <div>
+                <h2 id="addons-heading" className="text-lg font-semibold">
+                  Add-ons
+                </h2>
+                <p className="text-sm text-muted">Optional extras you can add when you book a service.</p>
+              </div>
+              <AddonList addons={addons} />
+            </section>
+          )}
 
           {business.portfolio.length > 0 && (
             <section aria-labelledby="portfolio-heading" className="flex flex-col gap-3">
@@ -154,14 +176,16 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-16 z-20 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden">
-        <LinkButton href={`/book/${business.slug}`} className="flex-1">
-          Book now
-        </LinkButton>
-        <LinkButton href={`/book/${business.slug}?quote=1`} variant="outline" className="flex-1">
-          Get a quote
-        </LinkButton>
-      </div>
+      {!paused && (
+        <div className="fixed inset-x-0 bottom-16 z-20 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden">
+          <LinkButton href={`/book/${business.slug}`} className="flex-1">
+            Book now
+          </LinkButton>
+          <LinkButton href={`/book/${business.slug}?quote=1`} variant="outline" className="flex-1">
+            Get a quote
+          </LinkButton>
+        </div>
+      )}
     </Container>
   );
 }

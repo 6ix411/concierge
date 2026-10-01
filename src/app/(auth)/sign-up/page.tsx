@@ -15,8 +15,14 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
 
   return (
     <>
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Create your account</h1>
-      <p className="mb-6 text-muted">Book trusted businesses, or list yours for customers to find.</p>
+      <h1 className="mb-1 text-2xl font-semibold tracking-tight">
+        {as === "business" ? "Become a Provider" : "Create your account"}
+      </h1>
+      <p className="mb-6 text-muted">
+        {as === "business"
+          ? "Create your business account, then register your business. It takes a few minutes."
+          : "Book trusted businesses, or list yours for customers to find."}
+      </p>
       <SignUpForm defaultRole={as === "business" ? "business" : "customer"} />
     </>
   );

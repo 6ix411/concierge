@@ -124,6 +124,26 @@ export default async function HomePage() {
           </section>
         )}
 
+        <section
+          aria-labelledby="provider-heading"
+          className="flex flex-col gap-3 rounded-2xl bg-brand p-6 text-brand-foreground sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <h2 id="provider-heading" className="text-lg font-semibold">
+              Run a business?
+            </h2>
+            <p className="text-sm opacity-80">
+              Get verified and matched with customers looking for what you do.
+            </p>
+          </div>
+          <Link
+            href="/become-a-provider"
+            className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-accent px-5 text-sm font-medium text-accent-foreground hover:opacity-90"
+          >
+            Become a Provider
+          </Link>
+        </section>
+
         <section aria-label="Why Concierge" className="grid gap-3 sm:grid-cols-3">
           {promises.map(({ icon: Icon, title, body }) => (
             <div key={title} className="flex gap-3">

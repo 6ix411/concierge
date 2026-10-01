@@ -79,3 +79,45 @@ export async function getConversation(conversationId: string) {
 
   return { ...conversation, messages };
 }
+
+/** Conversations for a business the signed-in owner runs, newest activity first. */
+export async function listBusinessConversations(businessId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, status, last_message_at, created_at, customer_id, bookings(reference)")
+    .eq("business_id", businessId)
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (error) throw new AppError("INTERNAL", "Could not load your messages.", { cause: error });
+
+  const conversations = data ?? [];
+  const [previews, names] = await Promise.all([
+    Promise.all(
+      conversations.map((c) =>
+        supabase
+          .from("messages")
+          .select("body, attachment_path, sender_id, created_at")
+          .eq("conversation_id", c.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ),
+    ),
+    getCounterpartNames(conversations.map((c) => c.customer_id)),
+  ]);
+  return conversations.map((c, i) => ({
+    ...c,
+    customerName: names.get(c.customer_id) ?? "Customer",
+    lastMessage: previews[i]?.data ?? null,
+  }));
+}
+
+/** Names (never contact details) of people the caller has a booking with. */
+export async function getCounterpartNames(userIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds)];
+  if (unique.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("get_booking_counterparts", { user_ids: unique });
+  return new Map((data ?? []).map((row) => [row.id, row.full_name ?? "Customer"]));
+}

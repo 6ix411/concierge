@@ -64,7 +64,7 @@ export const getBusinessBySlug = cache(async (slug: string) => {
   const { data: business, error } = await supabase
     .from("businesses")
     .select(
-      "id, name, slug, description, city, state, logo_path, cover_path, status, is_verified, verified_at, rating_avg, rating_count, created_at, primary_category:service_categories(name, slug)",
+      "id, name, slug, description, city, state, logo_path, cover_path, status, is_verified, verified_at, rating_avg, rating_count, created_at, accepting_bookings, min_notice_hours, booking_window_days, primary_category:service_categories(name, slug)",
     )
     .eq("slug", slug)
     .eq("status", "approved")
@@ -76,7 +76,7 @@ export const getBusinessBySlug = cache(async (slug: string) => {
     supabase
       .from("business_services")
       .select(
-        "id, name, description, pricing_type, price_minor, duration_minutes, is_package, package_includes, category_id",
+        "id, name, description, pricing_type, price_minor, duration_minutes, is_package, is_addon, package_includes, category_id",
       )
       .eq("business_id", business.id)
       .eq("is_active", true)
