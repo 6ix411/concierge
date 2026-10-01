@@ -12,20 +12,34 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a time.");
 export const bookingRequestSchema = z
   .object({
     mode: z.enum(["book", "quote"]),
+    /** Services and add-ons. */
     serviceIds: z.array(z.guid()).max(10),
+    packageId: z.guid().optional(),
     quantities: z.record(z.string(), z.coerce.number().int().min(1).max(100)),
     date,
     time,
     addressLine: z.string().trim().min(3, "Enter the address.").max(300),
     area: z.string().trim().min(2, "Enter the area.").max(80),
+    city: z.string().trim().min(2, "Enter the city.").max(80),
     state: z.string().trim().min(2, "Enter the state.").max(80),
+    guests: z.coerce
+      .number({ error: "Enter a number." })
+      .int("Enter a whole number.")
+      .min(1, "Enter at least 1.")
+      .max(100000, "That's more guests than we can book.")
+      .optional(),
     notes: z.string().trim().max(3000).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.mode === "book" && value.serviceIds.length === 0) {
-      ctx.addIssue({ code: "custom", path: ["serviceIds"], message: "Choose at least one service." });
+    if (value.mode === "book" && value.serviceIds.length === 0 && !value.packageId) {
+      ctx.addIssue({ code: "custom", path: ["serviceIds"], message: "Choose a service or a package." });
     }
-    if (value.mode === "quote" && value.serviceIds.length === 0 && (value.notes?.length ?? 0) < 10) {
+    if (
+      value.mode === "quote" &&
+      value.serviceIds.length === 0 &&
+      !value.packageId &&
+      (value.notes?.length ?? 0) < 10
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["notes"],

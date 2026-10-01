@@ -18,12 +18,14 @@ export const metadata: Metadata = { title: "Bookings" };
 
 const filters: { key: string; label: string; statuses: BookingStatus[] | null }[] = [
   { key: "active", label: "Active", statuses: activeBookingStatuses },
-  { key: "requests", label: "Waiting on business", statuses: ["quote_requested", "requested"] },
-  { key: "unpaid", label: "Waiting on payment", statuses: ["quoted", "accepted"] },
+  { key: "requests", label: "Waiting on business", statuses: ["requested", "pending_provider"] },
+  { key: "unpaid", label: "Waiting on payment", statuses: ["quoted", "accepted", "payment_pending"] },
   { key: "upcoming", label: "Paid", statuses: ["confirmed", "in_progress"] },
   { key: "disputed", label: "Disputed", statuses: ["disputed"] },
-  { key: "completed", label: "Completed", statuses: ["completed"] },
-  { key: "cancelled", label: "Cancelled", statuses: ["cancelled", "rejected", "expired"] },
+  { key: "completed", label: "Completed", statuses: ["completed", "reviewed"] },
+  { key: "refunds", label: "Refunds due", statuses: ["cancelled"] },
+  { key: "cancelled", label: "Cancelled", statuses: ["cancelled", "declined", "expired"] },
+  { key: "refunded", label: "Refunded", statuses: ["refunded"] },
   { key: "all", label: "All", statuses: null },
 ];
 
@@ -40,7 +42,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
   let query = db
     .from("bookings")
     .select(
-      "id, reference, status, scheduled_start, total_minor, created_at, business:businesses(id, name), customer:users!bookings_customer_id_fkey(id, full_name, email)",
+      "id, reference, status, scheduled_start, total_minor, created_at, business:businesses(id, name), customer:users!bookings_customer_id_fkey(id, full_name, email), payments(status)",
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -55,7 +57,12 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
     .filter(Boolean)
     .join("&");
   const hrefFor = (key: string) => adminHref(`/bookings?status=${key}${scope ? `&${scope}` : ""}`);
-  const bookings = data ?? [];
+  // Refunds due: cancelled bookings that still hold a successful payment.
+  const bookings = (data ?? []).filter(
+    (booking) =>
+      filter.key !== "refunds" ||
+      booking.payments.some((p) => p.status === "success" || p.status === "partially_refunded"),
+  );
 
   return (
     <div className="flex flex-col gap-6">

@@ -134,11 +134,66 @@ export type Database = {
           },
         ];
       };
+      booking_events: {
+        Row: {
+          actor_id: string | null;
+          actor_role: string;
+          booking_id: string;
+          created_at: string;
+          event: string;
+          from_status: Database["public"]["Enums"]["booking_status"] | null;
+          id: string;
+          metadata: NonNullable<Json>;
+          note: string | null;
+          to_status: Database["public"]["Enums"]["booking_status"] | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          actor_role: string;
+          booking_id: string;
+          created_at?: string;
+          event: string;
+          from_status?: Database["public"]["Enums"]["booking_status"] | null;
+          id?: string;
+          metadata?: NonNullable<Json>;
+          note?: string | null;
+          to_status?: Database["public"]["Enums"]["booking_status"] | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_role?: string;
+          booking_id?: string;
+          created_at?: string;
+          event?: string;
+          from_status?: Database["public"]["Enums"]["booking_status"] | null;
+          id?: string;
+          metadata?: NonNullable<Json>;
+          note?: string | null;
+          to_status?: Database["public"]["Enums"]["booking_status"] | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "booking_events_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "booking_events_booking_id_fkey";
+            columns: ["booking_id"];
+            isOneToOne: false;
+            referencedRelation: "bookings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       booking_items: {
         Row: {
           booking_id: string;
           created_at: string;
           id: string;
+          kind: string;
           name: string;
           quantity: number;
           service_id: string | null;
@@ -149,6 +204,7 @@ export type Database = {
           booking_id: string;
           created_at?: string;
           id?: string;
+          kind?: string;
           name: string;
           quantity?: number;
           service_id?: string | null;
@@ -159,6 +215,7 @@ export type Database = {
           booking_id?: string;
           created_at?: string;
           id?: string;
+          kind?: string;
           name?: string;
           quantity?: number;
           service_id?: string | null;
@@ -186,10 +243,13 @@ export type Database = {
         Row: {
           accepted_at: string | null;
           address_line: string | null;
+          area: string | null;
           business_id: string;
           cancellation_reason: string | null;
           cancelled_at: string | null;
           cancelled_by: string | null;
+          change_actor_id: string | null;
+          change_note: string | null;
           city: string | null;
           commission_rate_bps: number;
           completed_at: string | null;
@@ -198,7 +258,9 @@ export type Database = {
           currency: string;
           customer_id: string;
           customer_notes: string | null;
+          guests: number | null;
           id: string;
+          needs_quote: boolean;
           platform_fee_minor: number;
           quote_notes: string | null;
           reference: string;
@@ -213,10 +275,13 @@ export type Database = {
         Insert: {
           accepted_at?: string | null;
           address_line?: string | null;
+          area?: string | null;
           business_id: string;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
+          change_actor_id?: string | null;
+          change_note?: string | null;
           city?: string | null;
           commission_rate_bps?: number;
           completed_at?: string | null;
@@ -225,7 +290,9 @@ export type Database = {
           currency?: string;
           customer_id: string;
           customer_notes?: string | null;
+          guests?: number | null;
           id?: string;
+          needs_quote?: boolean;
           platform_fee_minor?: number;
           quote_notes?: string | null;
           reference?: string;
@@ -240,10 +307,13 @@ export type Database = {
         Update: {
           accepted_at?: string | null;
           address_line?: string | null;
+          area?: string | null;
           business_id?: string;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cancelled_by?: string | null;
+          change_actor_id?: string | null;
+          change_note?: string | null;
           city?: string | null;
           commission_rate_bps?: number;
           completed_at?: string | null;
@@ -252,7 +322,9 @@ export type Database = {
           currency?: string;
           customer_id?: string;
           customer_notes?: string | null;
+          guests?: number | null;
           id?: string;
+          needs_quote?: boolean;
           platform_fee_minor?: number;
           quote_notes?: string | null;
           reference?: string;
@@ -275,6 +347,13 @@ export type Database = {
           {
             foreignKeyName: "bookings_cancelled_by_fkey";
             columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_change_actor_id_fkey";
+            columns: ["change_actor_id"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];
@@ -1303,6 +1382,13 @@ export type Database = {
     };
     Functions: {
       admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
+      create_booking: {
+        Args: { p_booking: Json; p_items: Json };
+        Returns: {
+          id: string;
+          reference: string;
+        }[];
+      };
       current_user_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -1404,14 +1490,18 @@ export type Database = {
         | "quote_requested"
         | "quoted"
         | "requested"
+        | "pending_provider"
         | "accepted"
+        | "payment_pending"
         | "confirmed"
         | "in_progress"
         | "completed"
+        | "reviewed"
         | "cancelled"
-        | "rejected"
+        | "declined"
         | "expired"
-        | "disputed";
+        | "disputed"
+        | "refunded";
       business_status: "draft" | "pending" | "under_review" | "approved" | "rejected" | "suspended";
       conversation_status: "open" | "closed" | "locked";
       dispute_status: "open" | "under_review" | "resolved" | "rejected";
@@ -1552,14 +1642,18 @@ export const Constants = {
         "quote_requested",
         "quoted",
         "requested",
+        "pending_provider",
         "accepted",
+        "payment_pending",
         "confirmed",
         "in_progress",
         "completed",
+        "reviewed",
         "cancelled",
-        "rejected",
+        "declined",
         "expired",
         "disputed",
+        "refunded",
       ],
       business_status: ["draft", "pending", "under_review", "approved", "rejected", "suspended"],
       conversation_status: ["open", "closed", "locked"],

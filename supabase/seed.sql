@@ -217,10 +217,11 @@ create function pg_temp.past_booking(p_customer uuid, p_business_slug text, p_se
 returns void language plpgsql as $$
 declare
   biz uuid;
+  owner uuid;
   svc public.business_services;
   bk uuid;
 begin
-  select id into biz from public.businesses where slug = p_business_slug;
+  select id, owner_id into biz, owner from public.businesses where slug = p_business_slug;
   select * into svc from public.business_services where business_id = biz and name = p_service;
   insert into public.bookings (customer_id, business_id, status, scheduled_start, scheduled_end,
     subtotal_minor, platform_fee_minor, total_minor, commission_rate_bps, city, state)
@@ -228,11 +229,14 @@ begin
     now() - make_interval(days => p_days_ago) + make_interval(mins => coalesce(svc.duration_minutes, 120)),
     coalesce(svc.price_minor, 0), 0, coalesce(svc.price_minor, 0), 1000, 'Lekki', 'Lagos')
   returning id into bk;
-  insert into public.booking_items (booking_id, service_id, name, unit_price_minor, quantity)
-  values (bk, svc.id, svc.name, coalesce(svc.price_minor, 0), 1);
-  update public.bookings set status = 'accepted' where id = bk;
+  insert into public.booking_items (booking_id, service_id, name, unit_price_minor, quantity, kind)
+  values (bk, svc.id, svc.name, coalesce(svc.price_minor, 0), 1,
+    case when svc.is_package then 'package' when svc.is_addon then 'addon' else 'service' end);
+  update public.bookings set status = 'pending_provider' where id = bk;
+  update public.bookings set status = 'accepted', change_actor_id = owner where id = bk;
+  update public.bookings set status = 'payment_pending', change_actor_id = p_customer where id = bk;
   update public.bookings set status = 'confirmed' where id = bk;
-  update public.bookings set status = 'completed' where id = bk;
+  update public.bookings set status = 'completed', change_actor_id = owner where id = bk;
   -- Paid a few days before the job; payouts older than two weeks have been paid out.
   update public.bookings set created_at = now() - make_interval(days => p_days_ago + 5) where id = bk;
   insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
@@ -285,10 +289,26 @@ insert into public.disputes (booking_id, opened_by, reason, description, previou
 select id, 'a0000000-0000-0000-0000-000000000003', 'Problem came back',
   'The kitchen sink started leaking again the next day and the plumber hasn''t replied.', 'completed'
 from bk;
-update public.bookings set status = 'disputed'
+update public.bookings set status = 'disputed', change_actor_id = 'a0000000-0000-0000-0000-000000000003',
+  change_note = 'Problem came back'
 where id in (select booking_id from public.disputes);
 update public.payouts set status = 'on_hold'
 where booking_id in (select booking_id from public.disputes);
+
+-- The seeded jobs happened in the past: spread their history between booking and job.
+alter table public.booking_events disable trigger booking_events_append_only;
+with steps as (
+  select e.id, b.created_at as started, coalesce(b.scheduled_end, b.created_at) + interval '1 day' as finished,
+    row_number() over (partition by e.booking_id order by e.created_at, e.id) as n,
+    count(*) over (partition by e.booking_id) as total
+  from public.booking_events e
+  join public.bookings b on b.id = e.booking_id
+  where b.created_at < now() - interval '1 day'
+)
+update public.booking_events e
+set created_at = s.started + (s.finished - s.started) * ((s.n - 1)::numeric / greatest(s.total - 1, 1))
+from steps s where s.id = e.id;
+alter table public.booking_events enable trigger booking_events_append_only;
 
 -- An upcoming paid booking and a new request.
 create function pg_temp.open_booking(p_customer uuid, p_business_slug text, p_service text, p_days_ahead int,
@@ -296,10 +316,11 @@ create function pg_temp.open_booking(p_customer uuid, p_business_slug text, p_se
 returns void language plpgsql as $$
 declare
   biz uuid;
+  owner uuid;
   svc public.business_services;
   bk uuid;
 begin
-  select id into biz from public.businesses where slug = p_business_slug;
+  select id, owner_id into biz, owner from public.businesses where slug = p_business_slug;
   select * into svc from public.business_services where business_id = biz and name = p_service;
   insert into public.bookings (customer_id, business_id, status, scheduled_start, scheduled_end,
     subtotal_minor, platform_fee_minor, total_minor, commission_rate_bps, city, state)
@@ -307,24 +328,27 @@ begin
     date_trunc('day', now()) + make_interval(days => p_days_ahead, hours => 13),
     coalesce(svc.price_minor, 0), 0, coalesce(svc.price_minor, 0), 1000, 'Lekki', 'Lagos')
   returning id into bk;
-  insert into public.booking_items (booking_id, service_id, name, unit_price_minor, quantity)
-  values (bk, svc.id, svc.name, coalesce(svc.price_minor, 0), 1);
+  insert into public.booking_items (booking_id, service_id, name, unit_price_minor, quantity, kind)
+  values (bk, svc.id, svc.name, coalesce(svc.price_minor, 0), 1,
+    case when svc.is_package then 'package' when svc.is_addon then 'addon' else 'service' end);
+  update public.bookings set status = 'pending_provider' where id = bk;
   if p_status in ('accepted', 'confirmed', 'cancelled') then
-    update public.bookings set status = 'accepted' where id = bk;
+    update public.bookings set status = 'accepted', change_actor_id = owner where id = bk;
   end if;
   if p_status = 'confirmed' then
+    update public.bookings set status = 'payment_pending', change_actor_id = p_customer where id = bk;
     update public.bookings set status = 'confirmed' where id = bk;
     insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
     values (bk, p_customer, 'paystack', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success', now());
   elsif p_status = 'cancelled' then
-    update public.bookings set status = 'cancelled', cancelled_by = p_customer,
+    update public.bookings set status = 'cancelled', cancelled_by = p_customer, change_actor_id = p_customer,
       cancellation_reason = 'Event moved to next year.' where id = bk;
   end if;
 end;
 $$;
 
 select pg_temp.open_booking('a0000000-0000-0000-0000-000000000003', 'mama-put-catering', 'Wedding Catering (per 100 guests)', 21, 'confirmed');
-select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'royal-touch-decorations', 'White Wedding Reception Decor', 30, 'requested');
+select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'royal-touch-decorations', 'White Wedding Reception Decor', 30, 'pending_provider');
 select pg_temp.open_booking('a0000000-0000-0000-0000-000000000002', 'glow-studio-makeup', 'Bridal Makeup + Gele', 14, 'cancelled');
 
 -- ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { requireRole } from "@/lib/auth/session";
 import { recordPayout, withholdPayout } from "@/lib/bookings/payouts";
+import { moveBooking } from "@/lib/bookings/transitions";
 import { toFormError } from "@/lib/business/action-utils";
 import { AppError } from "@/lib/errors";
 import { formatNaira } from "@/lib/format";
@@ -77,24 +78,23 @@ export async function resolveDisputeAction(
 
     const db = createAdminClient();
     const nextStatus = bookingStatusAfterDispute(outcome, dispute.previous_booking_status);
-    const { data: moved, error: moveError } = await db
-      .from("bookings")
-      .update(
+    await moveBooking({
+      bookingId: booking.id,
+      from: "disputed",
+      to: nextStatus,
+      actorId: admin.id,
+      note: parsed.data.resolution,
+      changes:
         nextStatus === "cancelled"
-          ? { status: nextStatus, cancelled_by: admin.id, cancellation_reason: "Refunded after a dispute." }
-          : { status: nextStatus },
-      )
-      .eq("id", booking.id)
-      .eq("status", "disputed")
-      .select("id");
-    if (moveError) throw new AppError("INTERNAL", "Could not update the booking.", { cause: moveError });
-    if (!moved?.length) throw new AppError("CONFLICT", "This booking changed. Refresh to see the latest.");
+          ? { cancelled_by: admin.id, cancellation_reason: "Refund due after a dispute." }
+          : undefined,
+    });
 
     const paid = booking.payments
       .filter((p) => p.status === "success" || p.status === "partially_refunded")
       .reduce((sum, p) => sum + p.amount_minor - p.refunded_minor, 0);
     const refundDue = outcome === "customer" ? paid : 0;
-    if (nextStatus === "completed") await recordPayout(booking);
+    if (nextStatus === "completed" || nextStatus === "reviewed") await recordPayout(booking);
     if (outcome === "customer") await withholdPayout(booking.id, "Customer refunded after a dispute.");
 
     const { error } = await db

@@ -1,4 +1,4 @@
-import type { BookingStatus } from "@/lib/bookings/rules";
+import { doneStatuses, paidStatuses, type BookingStatus } from "@/lib/bookings/rules";
 import type { Database } from "@/types/database";
 
 type PayoutStatus = Database["public"]["Enums"]["payout_status"];
@@ -8,8 +8,7 @@ export function commissionFor(totalMinor: number, rateBps: number): number {
   return Math.round((totalMinor * rateBps) / 10_000);
 }
 
-/** Statuses where the customer has paid. */
-export const paidStatuses: BookingStatus[] = ["confirmed", "in_progress", "completed", "disputed"];
+export { paidStatuses };
 
 export type EarningsBooking = {
   status: BookingStatus;
@@ -54,7 +53,7 @@ export function summarizeEarnings(bookings: EarningsBooking[], payouts: Earnings
     summary.grossMinor += booking.total_minor;
     summary.commissionMinor += commission;
     summary.netMinor += net;
-    if (booking.status === "completed") summary.earnedMinor += net;
+    if (doneStatuses.includes(booking.status)) summary.earnedMinor += net;
     else if (booking.status === "confirmed" || booking.status === "in_progress") summary.upcomingMinor += net;
   }
   for (const payout of payouts) {
@@ -79,7 +78,7 @@ export function monthlyEarnings(
   }
   const totals = new Map(keys.map((key) => [key, 0]));
   for (const booking of bookings) {
-    if (booking.status !== "completed" || !booking.completed_at) continue;
+    if (!doneStatuses.includes(booking.status) || !booking.completed_at) continue;
     const key = lagos(new Date(booking.completed_at)).toISOString().slice(0, 7);
     if (!totals.has(key)) continue;
     const net = booking.total_minor - commissionFor(booking.total_minor, booking.commission_rate_bps);

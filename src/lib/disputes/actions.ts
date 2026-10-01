@@ -7,6 +7,7 @@ import { disputeOpenSchema } from "@/lib/admin/schemas";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { requireRole } from "@/lib/auth/session";
 import { holdPayout } from "@/lib/bookings/payouts";
+import { moveBooking } from "@/lib/bookings/transitions";
 import { toFormError } from "@/lib/business/action-utils";
 import { AppError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
@@ -70,15 +71,17 @@ export async function openDisputeAction(_prev: FormState, formData: FormData): P
     if (insertError || !dispute)
       throw new AppError("INTERNAL", "Could not report the problem.", { cause: insertError });
 
-    const { data: moved, error: moveError } = await db
-      .from("bookings")
-      .update({ status: "disputed" })
-      .eq("id", booking.id)
-      .eq("status", booking.status)
-      .select("id");
-    if (moveError || !moved?.length) {
+    try {
+      await moveBooking({
+        bookingId: booking.id,
+        from: booking.status,
+        to: "disputed",
+        actorId: user.id,
+        note: reason,
+      });
+    } catch (error) {
       await db.from("disputes").delete().eq("id", dispute.id);
-      throw new AppError("CONFLICT", "This booking changed. Refresh and try again.", { cause: moveError });
+      throw error;
     }
     await holdPayout(booking.id);
 

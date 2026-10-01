@@ -13,6 +13,7 @@ import { onboardingSteps } from "@/lib/business/onboarding";
 import { getOnboardingProgress, getStatusNote, requireOwnBusiness } from "@/lib/business/queries";
 import { canSubmitForReview } from "@/lib/business/status";
 import { formatNaira } from "@/lib/format";
+import { doneStatuses } from "@/lib/bookings/rules";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Business dashboard" };
@@ -55,7 +56,7 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
       .from("bookings")
       .select("status, total_minor, commission_rate_bps, completed_at")
       .eq("business_id", business.id)
-      .eq("status", "completed"),
+      .in("status", doneStatuses),
     supabase
       .from("verification_requests")
       .select("id", { count: "exact", head: true })

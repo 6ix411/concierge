@@ -5,6 +5,7 @@ import { Stars } from "@/components/marketplace/rating";
 import { EmptyState, LinkButton } from "@/components/ui";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { doneStatuses } from "@/lib/bookings/rules";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "My reviews" };
@@ -22,7 +23,7 @@ export default async function MyReviewsPage() {
       .from("bookings")
       .select("id, reference, businesses(name), reviews(id)")
       .eq("customer_id", user.id)
-      .eq("status", "completed")
+      .in("status", doneStatuses)
       .order("completed_at", { ascending: false })
       .limit(20),
   ]);

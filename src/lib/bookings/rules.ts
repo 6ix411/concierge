@@ -6,42 +6,67 @@ export type PricingType = Database["public"]["Enums"]["pricing_type"];
 /** What customers see for each status. */
 export const bookingStatusLabels: Record<BookingStatus, string> = {
   quote_requested: "Quote requested",
+  requested: "Requested",
+  pending_provider: "Waiting for business",
   quoted: "Quote received",
-  requested: "Waiting for business",
-  accepted: "Accepted, awaiting payment",
+  accepted: "Accepted, pay to confirm",
+  payment_pending: "Payment pending",
   confirmed: "Confirmed",
   in_progress: "In progress",
   completed: "Completed",
+  reviewed: "Reviewed",
+  declined: "Declined by business",
   cancelled: "Cancelled",
-  rejected: "Declined by business",
   expired: "Expired",
   disputed: "In dispute",
+  refunded: "Refunded",
 };
 
 export type StatusTone = "neutral" | "accent" | "verified" | "danger";
 export const bookingStatusTone: Record<BookingStatus, StatusTone> = {
   quote_requested: "neutral",
-  quoted: "accent",
   requested: "neutral",
+  pending_provider: "neutral",
+  quoted: "accent",
   accepted: "accent",
+  payment_pending: "accent",
   confirmed: "verified",
   in_progress: "verified",
   completed: "verified",
+  reviewed: "verified",
+  declined: "danger",
   cancelled: "danger",
-  rejected: "danger",
   expired: "neutral",
   disputed: "danger",
+  refunded: "neutral",
 };
 
+/** Bookings still in motion (shown as upcoming). */
 export const activeStatuses: BookingStatus[] = [
-  "quote_requested",
-  "quoted",
   "requested",
+  "pending_provider",
+  "quoted",
   "accepted",
+  "payment_pending",
   "confirmed",
   "in_progress",
   "disputed",
 ];
+
+/** Jobs that have been done, reviewed or not. */
+export const doneStatuses: BookingStatus[] = ["completed", "reviewed"];
+
+/** Bookings the customer has paid for. */
+export const paidStatuses: BookingStatus[] = [
+  "confirmed",
+  "in_progress",
+  "completed",
+  "reviewed",
+  "disputed",
+];
+
+/** Statuses that hold a slot in the business's day. */
+export const busyStatuses: BookingStatus[] = ["accepted", "payment_pending", "confirmed", "in_progress"];
 
 /** Hours before the start time after which a customer can no longer change a booking themselves. */
 export const CUSTOMER_CHANGE_CUTOFF_HOURS = 24;
@@ -55,16 +80,17 @@ function hoursUntil(start: string | null, now: Date): number {
 
 /**
  * Platform cancellation rules (customer side):
- * - Before payment (quote/requested/accepted): cancel any time.
- * - After payment (confirmed): cancel up to 24 hours before the start; refunds are handled
- *   by the payments stage. Inside 24 hours, open a dispute instead.
+ * - Before payment (requested, waiting for the business, quoted, accepted, payment pending): any time.
+ * - After payment (confirmed): up to 24 hours before the start; the payment is then refunded.
+ *   Inside 24 hours, open a dispute instead.
  */
 export function canCustomerCancel(booking: BookingLike, now = new Date()): boolean {
   switch (booking.status) {
-    case "quote_requested":
-    case "quoted":
     case "requested":
+    case "pending_provider":
+    case "quoted":
     case "accepted":
+    case "payment_pending":
       return true;
     case "confirmed":
       return hoursUntil(booking.scheduled_start, now) >= CUSTOMER_CHANGE_CUTOFF_HOURS;
@@ -75,13 +101,12 @@ export function canCustomerCancel(booking: BookingLike, now = new Date()): boole
 
 /** Customers can move the date themselves until the business has accepted; after that they agree it in chat. */
 export function canCustomerReschedule(booking: BookingLike): boolean {
-  return (
-    booking.status === "quote_requested" || booking.status === "requested" || booking.status === "quoted"
-  );
+  return ["requested", "pending_provider", "quoted"].includes(booking.status);
 }
 
+/** Pay once accepted; a payment that didn't go through can be tried again. */
 export function canCustomerPay(booking: BookingLike): boolean {
-  return booking.status === "accepted";
+  return booking.status === "accepted" || booking.status === "payment_pending";
 }
 
 export function canCustomerAcceptQuote(booking: BookingLike): boolean {
@@ -89,7 +114,7 @@ export function canCustomerAcceptQuote(booking: BookingLike): boolean {
 }
 
 export function canMessage(booking: BookingLike): boolean {
-  return ["confirmed", "in_progress", "completed", "disputed"].includes(booking.status);
+  return ["confirmed", "in_progress", "completed", "reviewed", "disputed"].includes(booking.status);
 }
 
 export function canReview(booking: BookingLike & { hasReview: boolean }): boolean {

@@ -9,6 +9,7 @@ import { BusinessAvatar } from "@/components/marketplace/business-avatar";
 import { VerifiedBadge } from "@/components/marketplace/verified-badge";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { createBookingAction } from "@/lib/bookings/actions";
+import { formatBookingLocation } from "@/lib/bookings/workflow";
 import { addDays, lagosToday } from "@/lib/dates";
 import { getBusinessBySlug } from "@/lib/marketplace/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -73,10 +74,13 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
             maxDate={maxDate}
             defaults={{
               addressLine: profile?.address_line ?? undefined,
-              area: profile?.city ?? undefined,
+              city: profile?.city ?? undefined,
               state: profile?.state ?? undefined,
               date: presetDate,
             }}
+            serviceAreas={business.areas.map((area) =>
+              formatBookingLocation({ address_line: null, ...area }),
+            )}
           />
         )}
       </div>

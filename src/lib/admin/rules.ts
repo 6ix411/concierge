@@ -5,7 +5,7 @@ import type { UserRole } from "@/types/roles";
 // Bookings
 // ---------------------------------------------------------------------------
 
-export type AdminBookingAction = "complete" | "cancel";
+export type AdminBookingAction = "complete" | "cancel" | "refund";
 
 /** What an admin can do to a booking, by status. Mirrors the database's allowed transitions. */
 export const adminBookingActions: Record<
@@ -14,23 +14,44 @@ export const adminBookingActions: Record<
 > = {
   complete: { from: ["confirmed", "in_progress"], to: "completed", label: "Mark as completed" },
   cancel: {
-    from: ["quote_requested", "quoted", "requested", "accepted", "confirmed", "in_progress"],
+    from: [
+      "requested",
+      "pending_provider",
+      "quoted",
+      "accepted",
+      "payment_pending",
+      "confirmed",
+      "in_progress",
+    ],
     to: "cancelled",
     label: "Cancel booking",
   },
+  refund: { from: ["cancelled"], to: "refunded", label: "Record refund" },
 };
 
-export function adminBookingActionsFor(status: BookingStatus): AdminBookingAction[] {
-  return (Object.keys(adminBookingActions) as AdminBookingAction[]).filter((action) =>
-    adminBookingActions[action].from.includes(status),
+/** Refunds only apply to cancelled bookings with money still owed back to the customer. */
+export function adminBookingActionsFor(status: BookingStatus, refundDueMinor = 0): AdminBookingAction[] {
+  return (Object.keys(adminBookingActions) as AdminBookingAction[]).filter(
+    (action) =>
+      adminBookingActions[action].from.includes(status) && (action !== "refund" || refundDueMinor > 0),
   );
 }
 
+/** What was paid and not yet refunded. */
+export function amountPaid(
+  payments: { status: string; amount_minor: number; refunded_minor: number }[],
+): number {
+  return payments
+    .filter((p) => p.status === "success" || p.status === "partially_refunded")
+    .reduce((sum, p) => sum + p.amount_minor - p.refunded_minor, 0);
+}
+
 export const activeBookingStatuses: BookingStatus[] = [
-  "quote_requested",
-  "quoted",
   "requested",
+  "pending_provider",
+  "quoted",
   "accepted",
+  "payment_pending",
   "confirmed",
   "in_progress",
   "disputed",
@@ -42,14 +63,14 @@ export const activeBookingStatuses: BookingStatus[] = [
 
 /** Customers and businesses can report a problem up to this many days after a job is completed. */
 export const DISPUTE_WINDOW_DAYS = 14;
-const disputableStatuses: BookingStatus[] = ["confirmed", "in_progress", "completed"];
+const disputableStatuses: BookingStatus[] = ["confirmed", "in_progress", "completed", "reviewed"];
 
 export function canOpenDispute(
   booking: { status: BookingStatus; completed_at: string | null },
   now: Date = new Date(),
 ): boolean {
   if (!disputableStatuses.includes(booking.status)) return false;
-  if (booking.status !== "completed") return true;
+  if (booking.status !== "completed" && booking.status !== "reviewed") return true;
   if (!booking.completed_at) return false;
   const ageMs = now.getTime() - new Date(booking.completed_at).getTime();
   return ageMs <= DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -69,7 +90,8 @@ export const disputeOutcomes: Record<
   },
   customer: {
     label: "Refund the customer",
-    description: "The booking is cancelled, the payout is withheld and the customer is refunded.",
+    description:
+      "The booking is cancelled and the payout is withheld. Record the refund once the money is back with the customer.",
     disputeStatus: "resolved",
   },
   dismissed: {
@@ -84,7 +106,7 @@ export function bookingStatusAfterDispute(
   outcome: DisputeOutcome,
   previous: BookingStatus | null,
 ): BookingStatus {
-  if (outcome === "business") return "completed";
+  if (outcome === "business") return previous === "reviewed" ? "reviewed" : "completed";
   if (outcome === "customer") return "cancelled";
   return previous && previous !== "disputed" ? previous : "completed";
 }
@@ -174,6 +196,7 @@ const auditLabels: Record<string, string> = {
   "verification.reject": "Rejected a verification document",
   "booking.complete": "Marked a booking completed",
   "booking.cancel": "Cancelled a booking",
+  "booking.refund": "Recorded a refund",
   "dispute.start_review": "Started reviewing a dispute",
   "dispute.business": "Resolved a dispute for the business",
   "dispute.customer": "Resolved a dispute for the customer",

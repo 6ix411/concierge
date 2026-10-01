@@ -5,17 +5,15 @@ import { refresh } from "next/cache";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { recordPayout } from "@/lib/bookings/payouts";
 import type { BookingStatus } from "@/lib/bookings/rules";
+import { moveBooking } from "@/lib/bookings/transitions";
 import { AppError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database";
 
 import { requireOwnBusinessForAction, toFormError } from "./action-utils";
 import { businessBookingActions, type BusinessBookingAction } from "./booking-rules";
 import { bookingDecisionSchema, quoteSchema } from "./schemas";
-
-type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
 
 /** The owner's booking (read with their session, so row level security applies). */
 async function loadOwnBooking(bookingId: string, businessId: string) {
@@ -23,7 +21,7 @@ async function loadOwnBooking(bookingId: string, businessId: string) {
   const { data } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, customer_id, business_id, total_minor, commission_rate_bps, scheduled_start",
+      "id, reference, status, needs_quote, customer_id, business_id, total_minor, commission_rate_bps, scheduled_start",
     )
     .eq("id", bookingId)
     .eq("business_id", businessId)
@@ -32,26 +30,11 @@ async function loadOwnBooking(bookingId: string, businessId: string) {
   return data;
 }
 
-/** Status changes are server-only. Updates only if the status hasn't changed since we checked. */
-async function updateIfStatus(
-  bookingId: string,
-  businessId: string,
-  expected: BookingStatus,
-  changes: BookingUpdate,
+function assertAllowed(
+  action: BusinessBookingAction,
+  booking: { status: BookingStatus; needs_quote: boolean },
 ) {
-  const { data, error } = await createAdminClient()
-    .from("bookings")
-    .update(changes)
-    .eq("id", bookingId)
-    .eq("business_id", businessId)
-    .eq("status", expected)
-    .select("id");
-  if (error) throw new AppError("INTERNAL", "Could not update the booking.", { cause: error });
-  if (!data?.length) throw new AppError("CONFLICT", "This booking changed. Refresh to see the latest.");
-}
-
-function assertAllowed(action: BusinessBookingAction, status: BookingStatus) {
-  if (!businessBookingActions(status).includes(action))
+  if (!businessBookingActions(booking.status, booking.needs_quote).includes(action))
     throw new AppError(
       "CONFLICT",
       "That isn't possible for this booking any more. Refresh to see the latest.",
@@ -99,23 +82,27 @@ export async function updateBookingStatusAction(
     });
     if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
     const booking = await loadOwnBooking(parsed.data.bookingId, business.id);
-    assertAllowed(action, booking.status);
+    assertAllowed(action, booking);
 
     if ((action === "decline" || action === "cancel") && !parsed.data.reason)
       return { status: "error", fieldErrors: { reason: "Tell the customer why." } };
 
-    const changes: BookingUpdate = {
-      accept: { status: "accepted" },
-      decline: { status: "rejected", cancellation_reason: parsed.data.reason ?? null },
-      start: { status: "in_progress" },
-      complete: { status: "completed" },
-      cancel: {
-        status: "cancelled",
-        cancelled_by: business.owner_id,
-        cancellation_reason: parsed.data.reason ?? null,
-      },
-    }[action] as BookingUpdate;
-    await updateIfStatus(booking.id, business.id, booking.status, changes);
+    const reason = parsed.data.reason ?? null;
+    const moves = {
+      accept: { to: "accepted", changes: {} },
+      decline: { to: "declined", changes: { cancellation_reason: reason } },
+      start: { to: "in_progress", changes: {} },
+      complete: { to: "completed", changes: {} },
+      cancel: { to: "cancelled", changes: { cancelled_by: business.owner_id, cancellation_reason: reason } },
+    } satisfies Record<typeof action, { to: BookingStatus; changes: object }>;
+    await moveBooking({
+      bookingId: booking.id,
+      from: booking.status,
+      to: moves[action].to,
+      actorId: business.owner_id,
+      changes: moves[action].changes,
+      scope: { businessId: business.id },
+    });
 
     // A completed job creates the business's payout (paid out in the payments stage).
     if (action === "complete") await recordPayout(booking);
@@ -146,18 +133,25 @@ export async function sendQuoteAction(_prev: FormState, formData: FormData): Pro
     });
     if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
     const booking = await loadOwnBooking(parsed.data.bookingId, business.id);
-    assertAllowed("quote", booking.status);
+    assertAllowed("quote", booking);
 
     const admin = createAdminClient();
     const { data: items } = await admin.from("booking_items").select("name").eq("booking_id", booking.id);
     const label = (items ?? []).map((item) => item.name).join(", ");
 
-    await updateIfStatus(booking.id, business.id, booking.status, {
-      status: "quoted",
-      quote_notes: parsed.data.notes ?? null,
-      subtotal_minor: parsed.data.amount,
-      platform_fee_minor: 0,
-      total_minor: parsed.data.amount,
+    await moveBooking({
+      bookingId: booking.id,
+      from: booking.status,
+      to: "quoted",
+      actorId: business.owner_id,
+      note: parsed.data.notes ?? null,
+      changes: {
+        quote_notes: parsed.data.notes ?? null,
+        subtotal_minor: parsed.data.amount,
+        platform_fee_minor: 0,
+        total_minor: parsed.data.amount,
+      },
+      scope: { businessId: business.id },
     });
     // The quote replaces the estimate: one line for the quoted price.
     await admin.from("booking_items").delete().eq("booking_id", booking.id);
