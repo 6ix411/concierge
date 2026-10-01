@@ -241,6 +241,15 @@ export const bookingDecisionSchema = z.object({
   reason: optionalText(500),
 });
 
+export const reviewReportSchema = z.object({
+  reviewId: z.guid(),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Tell us which guideline it breaks, in a sentence or two.")
+    .max(1000, "Keep it under 1000 characters."),
+});
+
 export const reviewReplySchema = z.object({
   reviewId: z.guid(),
   reply: z.string().trim().min(2, "Write a reply.").max(2000),

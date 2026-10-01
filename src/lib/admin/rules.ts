@@ -212,6 +212,8 @@ const auditLabels: Record<string, string> = {
   "dispute.dismissed": "Dismissed a dispute",
   "review.hide": "Hid a review",
   "review.publish": "Published a review",
+  "review.report_dismissed": "Kept a reported review",
+  "review.photo_removed": "Removed a review photo",
   "user.suspend": "Suspended a user",
   "user.reactivate": "Reactivated a user",
   "category.create": "Created a category",

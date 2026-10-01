@@ -11,6 +11,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // Review photos are posted through a server action: up to 4 photos of 5MB each, plus form overhead.
+    serverActions: { bodySizeLimit: "21mb" },
+    // The proxy buffers request bodies too, so it needs the same headroom.
+    proxyClientMaxBodySize: "21mb",
+  },
   images: {
     remotePatterns: [
       // Supabase Storage (business portfolios, avatars, chat uploads).

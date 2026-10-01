@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Stars } from "@/components/marketplace/rating";
+import { ReviewPhotos } from "@/components/marketplace/review-photos";
 import { EmptyState, LinkButton } from "@/components/ui";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { doneStatuses } from "@/lib/bookings/rules";
+import { photosForReviews } from "@/lib/reviews/photos";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "My reviews" };
@@ -16,7 +18,7 @@ export default async function MyReviewsPage() {
   const [{ data: reviews }, { data: toReview }] = await Promise.all([
     supabase
       .from("reviews")
-      .select("id, rating, comment, business_reply, created_at, booking_id, businesses(name, slug)")
+      .select("id, rating, comment, business_reply, created_at, status, booking_id, businesses(name, slug)")
       .eq("customer_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -28,6 +30,8 @@ export default async function MyReviewsPage() {
       .limit(20),
   ]);
   const pending = (toReview ?? []).filter((booking) => !booking.reviews);
+  // Row level security returned only this customer's own reviews.
+  const photos = await photosForReviews((reviews ?? []).map((r) => r.id));
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,6 +76,12 @@ export default async function MyReviewsPage() {
                   <Stars value={review.rating} />
                 </div>
                 {review.comment && <p className="mt-2 text-sm">{review.comment}</p>}
+                <ReviewPhotos urls={(photos.get(review.id) ?? []).map((p) => p.url)} />
+                {review.status === "hidden" && (
+                  <p className="mt-2 text-sm text-danger">
+                    Hidden by the Concierge team for breaking the review guidelines.
+                  </p>
+                )}
                 {review.business_reply && (
                   <p className="mt-3 rounded-xl bg-surface-muted p-3 text-sm text-muted">
                     <span className="font-medium text-foreground">Reply: </span>

@@ -11,6 +11,9 @@ import { notify } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+import { saveReviewPhotos } from "./photos";
+import { reviewPhotosProblem, sniffImageType, type ReviewPhotoType } from "./rules";
+
 const reviewSchema = z.object({
   bookingId: z.guid(),
   rating: z.coerce.number().int().min(1, "Choose a rating.").max(5),
@@ -29,6 +32,19 @@ export async function submitReviewAction(_prev: FormState, formData: FormData): 
     if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
     bookingId = parsed.data.bookingId;
 
+    // Optional photos: checked in full before anything is saved. An empty picker sends one empty file.
+    const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+    const photoProblem = reviewPhotosProblem(files);
+    if (photoProblem) return { status: "error", fieldErrors: { photos: photoProblem } };
+    const photos: { bytes: Uint8Array; type: ReviewPhotoType }[] = [];
+    for (const file of files) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const type = sniffImageType(bytes);
+      if (!type)
+        return { status: "error", fieldErrors: { photos: `${file.name} isn't a JPG, PNG or WebP photo.` } };
+      photos.push({ bytes, type });
+    }
+
     const supabase = await createClient();
     const { data: booking } = await supabase
       .from("bookings")
@@ -42,7 +58,7 @@ export async function submitReviewAction(_prev: FormState, formData: FormData): 
     }
 
     // The database also checks the booking is completed and belongs to this customer.
-    const { error } = await createAdminClient()
+    const { data: review, error } = await createAdminClient()
       .from("reviews")
       .insert({
         booking_id: booking.id,
@@ -50,11 +66,15 @@ export async function submitReviewAction(_prev: FormState, formData: FormData): 
         business_id: booking.business_id,
         rating: parsed.data.rating,
         comment: parsed.data.comment ?? null,
-      });
-    if (error) {
+      })
+      .select("id")
+      .single();
+    if (error || !review) {
       if (error.code === "23505") throw new AppError("CONFLICT", "You’ve already reviewed this booking.");
+      if (error?.code === "23514") throw new AppError("FORBIDDEN", "This booking can’t be reviewed.");
       throw new AppError("INTERNAL", "Could not save your review.", { cause: error });
     }
+    if (photos.length > 0) await saveReviewPhotos(review.id, photos);
     if (booking.businesses?.owner_id) {
       await notify({
         userId: booking.businesses.owner_id,

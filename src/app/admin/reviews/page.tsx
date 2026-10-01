@@ -6,17 +6,24 @@ import { AdminActionForm } from "@/components/admin/action-form";
 import { FilterTabs, PageHeader } from "@/components/admin/dashboard-widgets";
 import { Stars } from "@/components/marketplace/rating";
 import { Badge, EmptyState } from "@/components/ui";
-import { moderateReviewAction } from "@/lib/admin/review-actions";
+import {
+  dismissReviewReportAction,
+  moderateReviewAction,
+  removeReviewPhotoAction,
+} from "@/lib/admin/review-actions";
 import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { AppError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
+import { photosForReviews } from "@/lib/reviews/photos";
+import { reviewGuidelines } from "@/lib/reviews/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Reviews" };
 
 const filters = [
   { key: "all", label: "All" },
+  { key: "reported", label: "Reported" },
   { key: "low", label: "1–2 stars" },
   { key: "hidden", label: "Hidden" },
 ] as const;
@@ -30,16 +37,18 @@ export default async function AdminReviewsPage({ searchParams }: PageProps<"/adm
   let query = createAdminClient()
     .from("reviews")
     .select(
-      "id, rating, comment, business_reply, status, created_at, booking_id, business:businesses(id, name), customer:users!reviews_customer_id_fkey(id, full_name)",
+      "id, rating, comment, business_reply, status, created_at, booking_id, reported_at, report_reason, business:businesses(id, name), customer:users!reviews_customer_id_fkey(id, full_name)",
     )
     .order("created_at", { ascending: false })
     .limit(100);
+  if (filter.key === "reported") query = query.not("reported_at", "is", null);
   if (filter.key === "low") query = query.lte("rating", 2);
   if (filter.key === "hidden") query = query.eq("status", "hidden");
   if (businessId) query = query.eq("business_id", businessId);
   const { data, error } = await query;
   if (error) throw new AppError("INTERNAL", "Could not load reviews.", { cause: error });
   const reviews = data ?? [];
+  const photos = await photosForReviews(reviews.map((r) => r.id));
   const scope = businessId ? `&business=${businessId}` : "";
 
   return (
@@ -48,6 +57,18 @@ export default async function AdminReviewsPage({ searchParams }: PageProps<"/adm
         title="Reviews"
         description="Hide reviews that break the guidelines. Hidden reviews don’t count towards ratings."
       />
+      <details className="rounded-2xl border border-border bg-surface p-4 text-sm">
+        <summary className="cursor-pointer font-medium">Review guidelines</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+          {reviewGuidelines.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+        <p className="mt-2 text-muted">
+          Only customers with a completed booking can review, once per booking. A low rating on its own is not
+          a reason to hide a review.
+        </p>
+      </details>
       <FilterTabs
         label="Filter reviews"
         current={filter.key}
@@ -91,9 +112,41 @@ export default async function AdminReviewsPage({ searchParams }: PageProps<"/adm
                     · {formatDate(review.created_at)}
                   </span>
                 </div>
-                {review.status === "hidden" && <Badge tone="danger">Hidden</Badge>}
+                <div className="flex gap-2">
+                  {review.reported_at && <Badge tone="accent">Reported by the business</Badge>}
+                  {review.status === "hidden" && <Badge tone="danger">Hidden</Badge>}
+                </div>
               </div>
               {review.comment && <p className="text-sm whitespace-pre-line">{review.comment}</p>}
+              {(photos.get(review.id) ?? []).length > 0 && (
+                <ul className="flex flex-wrap gap-3" aria-label="Photos">
+                  {(photos.get(review.id) ?? []).map((photo, index) => (
+                    <li key={photo.id} className="flex w-28 flex-col gap-1">
+                      <a href={photo.url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.url}
+                          alt={`Review photo ${index + 1}`}
+                          className="size-28 rounded-xl border border-border object-cover"
+                        />
+                      </a>
+                      <AdminActionForm
+                        action={removeReviewPhotoAction}
+                        fields={{ photoId: photo.id }}
+                        label="Remove photo"
+                        variant="ghost"
+                        reason={{ label: "Why? (the reviewer will see this)", required: true }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {review.reported_at && review.report_reason && (
+                <p className="rounded-xl bg-surface-muted p-3 text-sm">
+                  <span className="font-medium">The business says: </span>
+                  {review.report_reason}
+                </p>
+              )}{" "}
               {review.business_reply && (
                 <p className="border-l-2 border-border pl-3 text-sm text-muted">
                   <span className="font-medium">Business reply:</span> {review.business_reply}
@@ -115,6 +168,16 @@ export default async function AdminReviewsPage({ searchParams }: PageProps<"/adm
                     action={moderateReviewAction.bind(null, "publish")}
                     fields={{ reviewId: review.id }}
                     label="Publish again"
+                  />
+                )}
+                {review.reported_at && (
+                  <AdminActionForm
+                    key="keep"
+                    action={dismissReviewReportAction}
+                    fields={{ reviewId: review.id }}
+                    label="Keep review"
+                    variant="outline"
+                    reason={{ label: "Note for the business", required: false }}
                   />
                 )}
                 <Link

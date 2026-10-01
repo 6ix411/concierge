@@ -274,6 +274,9 @@ select pg_temp.past_booking('a0000000-0000-0000-0000-000000000003', 'glow-studio
 select pg_temp.past_booking('a0000000-0000-0000-0000-000000000002', 'lens-and-light', 'Photo + Cinematic Video', 90, 5,
   'The highlight film made my mum cry. Incredible work.');
 
+-- A finished job Emeka hasn't reviewed yet, so the review flow can be tried.
+select pg_temp.past_booking('a0000000-0000-0000-0000-000000000003', 'royal-touch-decorations', 'White Wedding Reception Decor', 2, null, null);
+
 -- ---------------------------------------------------------------------------
 -- A few bookings in other states, so the admin dashboard has something to manage.
 -- ---------------------------------------------------------------------------

@@ -1412,6 +1412,38 @@ export type Database = {
           },
         ];
       };
+      review_photos: {
+        Row: {
+          created_at: string;
+          id: string;
+          review_id: string;
+          sort_order: number;
+          storage_path: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          review_id: string;
+          sort_order?: number;
+          storage_path: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          review_id?: string;
+          sort_order?: number;
+          storage_path?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "review_photos_review_id_fkey";
+            columns: ["review_id"];
+            isOneToOne: false;
+            referencedRelation: "reviews";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reviews: {
         Row: {
           booking_id: string;
@@ -1423,6 +1455,8 @@ export type Database = {
           customer_id: string;
           id: string;
           rating: number;
+          report_reason: string | null;
+          reported_at: string | null;
           status: Database["public"]["Enums"]["review_status"];
           updated_at: string;
         };
@@ -1436,6 +1470,8 @@ export type Database = {
           customer_id: string;
           id?: string;
           rating: number;
+          report_reason?: string | null;
+          reported_at?: string | null;
           status?: Database["public"]["Enums"]["review_status"];
           updated_at?: string;
         };
@@ -1449,6 +1485,8 @@ export type Database = {
           customer_id?: string;
           id?: string;
           rating?: number;
+          report_reason?: string | null;
+          reported_at?: string | null;
           status?: Database["public"]["Enums"]["review_status"];
           updated_at?: string;
         };
@@ -1733,6 +1771,7 @@ export type Database = {
           comment: string;
           created_at: string;
           id: string;
+          photo_paths: string[];
           rating: number;
           reviewer_name: string;
         }[];

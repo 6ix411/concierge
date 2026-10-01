@@ -45,6 +45,11 @@ export const reviewModerationSchema = z.object({
   reason: optionalText(1000),
 });
 
+export const reviewPhotoRemovalSchema = z.object({
+  photoId: z.guid(),
+  reason: optionalText(1000),
+});
+
 export const userStatusSchema = z.object({
   userId: z.guid(),
   reason: optionalText(1000),
