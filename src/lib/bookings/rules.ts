@@ -177,3 +177,25 @@ export function isWithinAvailability(rules: AvailabilityRule[], date: string, ti
       at < minutes(rule.end_time),
   );
 }
+
+/**
+ * A business's booking rules: minimum notice before the start, and how far ahead customers can book.
+ * Returns field errors, or null when the time is fine.
+ */
+export function checkBookingWindow(
+  rules: { min_notice_hours: number; booking_window_days: number },
+  start: Date,
+  now = new Date(),
+): Partial<Record<"date" | "time", string>> | null {
+  const hoursAhead = (start.getTime() - now.getTime()) / 36e5;
+  if (hoursAhead < rules.min_notice_hours) {
+    const days = rules.min_notice_hours / 24;
+    const [amount, unit] = Number.isInteger(days) ? [days, "day"] : [rules.min_notice_hours, "hour"];
+    const notice = amount === 1 ? `1 ${unit}’s` : `${amount} ${unit}s’`;
+    return { time: `This business needs at least ${notice} notice. Pick a later time.` };
+  }
+  if (hoursAhead > rules.booking_window_days * 24) {
+    return { date: `This business takes bookings up to ${rules.booking_window_days} days ahead.` };
+  }
+  return null;
+}

@@ -34,6 +34,9 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
     .maybeSingle();
 
   const today = lagosToday();
+  // Earliest day that respects the business's notice period (the server checks the exact time).
+  const minDate = addDays(today, Math.max(1, Math.ceil(business.min_notice_hours / 24)));
+  const maxDate = addDays(today, business.booking_window_days);
   return (
     <Container className="grid gap-8 py-6 sm:py-10 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col gap-6">
@@ -51,14 +54,18 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
         </div>
         {user.role !== "customer" ? (
           <p className="text-muted">Bookings are made from customer accounts.</p>
+        ) : !business.accepting_bookings ? (
+          <p className="rounded-xl bg-surface-muted px-4 py-3 text-muted">
+            {business.name} isn’t taking new bookings right now. Check back soon.
+          </p>
         ) : (
           <BookingForm
             action={createBookingAction.bind(null, business.slug)}
             services={business.services}
             preselected={preselected}
             quoteMode={quote === "1" || business.services.length === 0}
-            minDate={addDays(today, 1)}
-            maxDate={addDays(today, 365)}
+            minDate={minDate}
+            maxDate={maxDate}
             defaults={{
               addressLine: profile?.address_line ?? undefined,
               area: profile?.city ?? undefined,

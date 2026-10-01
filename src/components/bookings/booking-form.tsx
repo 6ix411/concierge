@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { priceLabel } from "@/components/marketplace/service-list";
@@ -35,13 +35,16 @@ export function BookingForm({
   );
   const [mode, setMode] = useState<"book" | "quote">(quoteMode ? "quote" : "book");
 
-  const chosen = services.filter((service) => selected[service.id]);
+  const mainServices = services.filter((service) => !service.is_addon);
+  const addons = services.filter((service) => service.is_addon);
+  const hasMainService = mainServices.some((service) => selected[service.id]);
+  // Add-ons only count alongside a main service (or in a quote request).
+  const chosen = services.filter(
+    (service) => selected[service.id] && (!service.is_addon || hasMainService || mode === "quote"),
+  );
   const needsQuote =
     mode === "quote" || chosen.some((s) => s.pricing_type !== "fixed" && s.pricing_type !== "hourly");
-  const estimate = useMemo(
-    () => chosen.reduce((sum, s) => sum + (s.price_minor ?? 0) * (selected[s.id] ?? 1), 0),
-    [chosen, selected],
-  );
+  const estimate = chosen.reduce((sum, s) => sum + (s.price_minor ?? 0) * (selected[s.id] ?? 1), 0);
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -89,7 +92,7 @@ export function BookingForm({
         <legend className="mb-2 text-sm font-medium">
           {mode === "quote" ? "Services you’re interested in (optional)" : "Choose services"}
         </legend>
-        {services.map((service) => {
+        {mainServices.map((service) => {
           const checked = Boolean(selected[service.id]);
           const perUnit = service.pricing_type === "hourly";
           return (
@@ -139,6 +142,40 @@ export function BookingForm({
           <p className="text-sm text-danger">{state.fieldErrors.serviceIds}</p>
         )}
       </fieldset>
+      {addons.length > 0 && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Add-ons (optional)</legend>
+          <p className="mb-1 text-sm text-muted">
+            {hasMainService || mode === "quote"
+              ? "Extras you can add to your booking."
+              : "Choose a service first."}
+          </p>
+          {addons.map((addon) => (
+            <div
+              key={addon.id}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border border-border bg-surface p-3",
+                selected[addon.id] && "border-foreground",
+              )}
+            >
+              <input
+                type="checkbox"
+                id={`svc-${addon.id}`}
+                name="serviceIds"
+                value={addon.id}
+                checked={Boolean(selected[addon.id])}
+                disabled={!hasMainService && mode !== "quote"}
+                onChange={() => toggle(addon.id)}
+                className="mt-1 size-4 accent-foreground"
+              />
+              <label htmlFor={`svc-${addon.id}`} className="flex-1 cursor-pointer">
+                <span className="block text-sm font-medium">{addon.name}</span>
+                <span className="block text-sm text-muted">+ {priceLabel(addon)}</span>
+              </label>
+            </div>
+          ))}
+        </fieldset>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Input

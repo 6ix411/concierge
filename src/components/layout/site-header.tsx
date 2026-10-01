@@ -63,6 +63,9 @@ export async function SiteHeader() {
             </>
           ) : (
             <>
+              <Link href="/become-a-provider" className={`${navLink} hidden md:inline-block`}>
+                Become a Provider
+              </Link>
               <Link href="/sign-in" className={navLink}>
                 Sign in
               </Link>

@@ -104,7 +104,7 @@ from (values
    'moving', '+2348030000008', 'move@abujamoves.ng', '10 Aminu Kano Crescent', 'Wuse 2', 'FCT', 'approved'),
   ('c0000000-0000-0000-0000-000000000009', 'b0000000-0000-0000-0000-000000000009', 'Unverified Decor Hub', 'unverified-decor-hub',
    'Pending review. Must never appear to customers or the concierge.',
-   'event-decoration', '+2348030000009', null, null, 'Lekki', 'Lagos', 'pending_review')
+   'event-decoration', '+2348030000009', null, null, 'Lekki', 'Lagos', 'pending')
 ) as v(id, owner, name, slug, description, category, phone, email, address, city, state, status)
 join public.service_categories c on c.slug = v.category;
 
@@ -154,6 +154,20 @@ from (values
   ('c0000000-0000-0000-0000-000000000009', 'event-decoration', 'Budget Decor',
    'Hidden: business not approved.', 'fixed', 10000000, 240, false, array[]::text[], 1)
 ) as v(biz, category, name, description, pricing, price, duration, is_package, includes, sort_order)
+join public.service_categories c on c.slug = v.category;
+
+-- Add-ons: optional extras booked with a main service.
+insert into public.business_services (business_id, category_id, name, description, pricing_type, price_minor,
+  duration_minutes, is_addon, sort_order)
+select v.biz::uuid, c.id, v.name, v.description, 'fixed', v.price, v.duration, true, v.sort_order
+from (values
+  ('c0000000-0000-0000-0000-000000000001', 'event-decoration', 'Fog machine for the first dance',
+   'Low-lying fog effect operated by our team.', 15000000, 60, 10),
+  ('c0000000-0000-0000-0000-000000000001', 'event-decoration', 'Extra 2 hours of setup',
+   'Early access for venues with tight schedules.', 10000000, 120, 11),
+  ('c0000000-0000-0000-0000-000000000006', 'makeup-hair', 'Extra bridesmaid',
+   'Makeup for one more bridesmaid.', 6000000, 45, 10)
+) as v(biz, category, name, description, price, duration, sort_order)
 join public.service_categories c on c.slug = v.category;
 
 insert into public.service_areas (business_id, state, city, area)
