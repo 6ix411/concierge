@@ -43,7 +43,7 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
        cancelled_by_user:users!bookings_cancelled_by_fkey(full_name, role),
        booking_items(id, name, unit_price_minor, quantity, total_minor, kind),
        booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at),
-       payments(id, provider, reference, status, amount_minor, refunded_minor, paid_at),
+       payments(id, provider, reference, status, amount_minor, refunded_minor, paid_at, channel, platform_fee_minor, provider_amount_minor, refund_status),
        payouts(id, status, gross_minor, commission_minor, amount_minor, failure_reason, paid_at),
        disputes(id, reason, status, created_at)`,
     )
@@ -52,8 +52,9 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
   if (error) throw new AppError("INTERNAL", "Could not load the booking.", { cause: error });
   if (!booking) notFound();
 
+  const refundPending = booking.payments.some((p) => p.refund_status === "pending");
   const refundDue = booking.status === "cancelled" ? amountPaid(booking.payments) : 0;
-  const actions = adminBookingActionsFor(booking.status, refundDue);
+  const actions = adminBookingActionsFor(booking.status, refundPending ? 0 : refundDue);
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,7 +88,9 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
           <p className="text-sm text-muted">
             {booking.status === "disputed"
               ? "This booking is disputed. Settle it from the dispute."
-              : "Nothing to do for a booking in this state."}
+              : refundPending
+                ? "A refund is on its way to the customer. The booking moves to refunded when the payment provider confirms it."
+                : "Nothing to do for a booking in this state."}
           </p>
         ) : (
           <div key={booking.status} className="flex flex-wrap items-start gap-2">
@@ -102,8 +105,8 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
               <AdminActionForm
                 action={adminBookingAction.bind(null, "refund")}
                 fields={{ bookingId: booking.id }}
-                label={`Record refund of ${formatNaira(refundDue)}`}
-                reason={{ label: "Note, e.g. the refund reference", required: false }}
+                label={`Refund ${formatNaira(refundDue)} to the customer`}
+                reason={{ label: "Note for the audit log", required: false }}
               />
             )}
             {actions.includes("cancel") && (
@@ -224,8 +227,15 @@ export default async function AdminBookingPage({ params }: PageProps<"/admin/boo
                   </span>
                   <span className="text-xs text-muted">
                     {payment.provider} · {payment.reference}
+                    {payment.channel && ` · ${payment.channel}`}
                     {payment.paid_at && ` · ${formatDateTime(payment.paid_at)}`}
                     {payment.refunded_minor > 0 && ` · ${formatNaira(payment.refunded_minor)} refunded`}
+                    {payment.refund_status === "pending" && " · refund on its way"}
+                    {payment.refund_status === "failed" && " · refund failed"}
+                  </span>
+                  <span className="text-xs text-muted">
+                    Platform fee {formatNaira(payment.platform_fee_minor)} · Business gets{" "}
+                    {formatNaira(payment.provider_amount_minor)}
                   </span>
                 </li>
               ))}

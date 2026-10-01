@@ -240,7 +240,7 @@ begin
   -- Paid a few days before the job; payouts older than two weeks have been paid out.
   update public.bookings set created_at = now() - make_interval(days => p_days_ago + 5) where id = bk;
   insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
-  values (bk, p_customer, 'paystack', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success',
+  values (bk, p_customer, 'mock', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success',
     now() - make_interval(days => p_days_ago + 3));
   insert into public.payouts (business_id, booking_id, gross_minor, commission_minor, amount_minor, status, paid_at)
   values (biz, bk, coalesce(svc.price_minor, 0), coalesce(svc.price_minor, 0) / 10,
@@ -339,7 +339,7 @@ begin
     update public.bookings set status = 'payment_pending', change_actor_id = p_customer where id = bk;
     update public.bookings set status = 'confirmed' where id = bk;
     insert into public.payments (booking_id, payer_id, provider, reference, amount_minor, status, paid_at)
-    values (bk, p_customer, 'paystack', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success', now());
+    values (bk, p_customer, 'mock', 'SEED-' || substr(bk::text, 1, 8), coalesce(svc.price_minor, 0), 'success', now());
   elsif p_status = 'cancelled' then
     update public.bookings set status = 'cancelled', cancelled_by = p_customer, change_actor_id = p_customer,
       cancellation_reason = 'Event moved to next year.' where id = bk;
@@ -421,3 +421,16 @@ insert into public.business_availability (business_id, day_of_week, start_time, 
 select b.id, d, '09:00', '20:00'
 from public.businesses b, generate_series(0, 6) d
 where b.slug in ('paused-photo-co', 'pending-pixels');
+
+-- ---------------------------------------------------------------------------
+-- Payouts: each points at the payment it comes from. Some businesses have a bank account on file
+-- (Lush Events Decor doesn't, so the owner demo can add one).
+-- ---------------------------------------------------------------------------
+update public.payouts po set payment_id = p.id
+from public.payments p
+where p.booking_id = po.booking_id and p.status = 'success';
+
+insert into public.business_payout_accounts (business_id, provider, bank_code, bank_name, account_number, account_name, recipient_code)
+select id, 'mock', '058', 'Guaranty Trust Bank', '0123456789', upper(name), 'RCP_mock6789'
+from public.businesses
+where slug in ('sparkle-home-cleaning', 'royal-touch-decorations', 'mama-put-catering', 'fixit-plumbing');

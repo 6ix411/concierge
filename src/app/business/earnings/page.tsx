@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PayoutAccountForm } from "@/components/business/payout-account-form";
 import { EmptyState } from "@/components/ui";
 import { commissionFor, monthlyEarnings, paidStatuses, summarizeEarnings } from "@/lib/business/earnings";
 import { requireOwnBusiness } from "@/lib/business/queries";
-import { AppError } from "@/lib/errors";
+import { savePayoutAccountAction } from "@/lib/business/payout-actions";
+import { AppError, logger } from "@/lib/errors";
 import { formatDate, formatNaira } from "@/lib/format";
+import { getPaymentProvider, type Bank } from "@/lib/payments";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Earnings" };
 
 const payoutLabels = {
   pending: "Scheduled",
-  processing: "Processing",
+  processing: "On its way",
   paid: "Paid",
   failed: "Failed",
   on_hold: "On hold",
@@ -30,7 +33,13 @@ function monthName(key: string) {
 export default async function BusinessEarningsPage() {
   const { business } = await requireOwnBusiness();
   const supabase = await createClient();
-  const [bookings, payouts] = await Promise.all([
+  const banks = getPaymentProvider()
+    .listBanks()
+    .catch((error: unknown): Bank[] => {
+      logger.error("Could not load the bank list", { error });
+      return [];
+    });
+  const [bookings, payouts, account] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, reference, status, total_minor, commission_rate_bps, completed_at, scheduled_start")
@@ -40,11 +49,16 @@ export default async function BusinessEarningsPage() {
     supabase
       .from("payouts")
       .select(
-        "id, status, amount_minor, gross_minor, commission_minor, paid_at, created_at, bookings(reference)",
+        "id, status, amount_minor, gross_minor, commission_minor, paid_at, created_at, bank_name, account_number_last4, bookings(reference)",
       )
       .eq("business_id", business.id)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("business_payout_accounts")
+      .select("bank_name, account_name, account_number, verified_at")
+      .eq("business_id", business.id)
+      .maybeSingle(),
   ]);
   if (bookings.error || payouts.error)
     throw new AppError("INTERNAL", "Could not load your earnings.", {
@@ -66,9 +80,29 @@ export default async function BusinessEarningsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Earnings</h1>
         <p className="mt-1 text-muted">
-          Customers pay on Concierge. When you mark a job as completed, your share is scheduled for payout.
+          Customers pay on Concierge. When you mark a job as completed, your share (the price less the
+          platform fee) is sent to your bank account.
         </p>
       </div>
+
+      <section
+        aria-labelledby="bank-heading"
+        className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4"
+      >
+        <h2 id="bank-heading" className="text-lg font-semibold">
+          Where we pay you
+        </h2>
+        {!account.data && (
+          <p className="text-sm text-muted">Add your bank account so we can send your payouts.</p>
+        )}
+        {(await banks).length > 0 || account.data ? (
+          <PayoutAccountForm action={savePayoutAccountAction} banks={await banks} saved={account.data} />
+        ) : (
+          <p className="text-sm text-danger">
+            We can&apos;t reach our payment provider right now. Try again shortly.
+          </p>
+        )}
+      </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((card) => (
@@ -169,6 +203,7 @@ export default async function BusinessEarningsPage() {
                   <span className="font-medium">{payout.bookings?.reference ?? "Payout"}</span>
                   <span className="block text-xs text-muted">
                     {payoutLabels[payout.status]} · {formatDate(payout.paid_at ?? payout.created_at)}
+                    {payout.bank_name && ` · ${payout.bank_name} ••${payout.account_number_last4 ?? ""}`}
                   </span>
                 </span>
                 <span className="font-medium tabular-nums">{formatNaira(payout.amount_minor)}</span>

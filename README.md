@@ -251,8 +251,47 @@ Customers, the business and admins see it on the booking page.
 
 **Refunds.** A customer can cancel a paid booking up to 24 hours before the start, and a dispute
 can be settled in the customer's favour. Both leave it cancelled with a refund due. The admin
-**Refunds due** list shows these; once the money is sent from the payment provider's dashboard,
-**Record refund** marks the payment refunded and moves the booking to `refunded`.
+**Refunds due** list shows these; **Refund to the customer** sends the money back through the payment
+provider and moves the booking to `refunded` (see [Payments](#payments)).
+
+## Payments
+
+Money flows: **customer payment → platform (Paystack or Flutterwave balance) → platform fee →
+payout to the business**.
+
+| Setting                    | What it does                                                      |
+| -------------------------- | ----------------------------------------------------------------- |
+| `PAYMENT_PROVIDER`         | `paystack` (default), `flutterwave`, or `mock` (development only) |
+| `PAYSTACK_SECRET_KEY`      | Paystack secret key; also signs Paystack webhooks                 |
+| `FLUTTERWAVE_SECRET_KEY`   | Flutterwave secret key                                            |
+| `FLUTTERWAVE_WEBHOOK_HASH` | The "secret hash" set in the Flutterwave dashboard                |
+
+Secret keys are only read on the server. Set the webhook URL in the provider's dashboard to
+`https://<your domain>/api/payments/webhook/paystack` (or `/flutterwave`). For payouts, Paystack
+transfers must be enabled on the account and funded from the balance.
+
+- **Commission is data, not code.** Admins set the platform rate on the private admin link
+  (`/commission`) and can give a business its own rate. A booking stores the rate in force when it
+  was made; if no rate has been set, new bookings are refused rather than falling back to a built-in
+  number.
+- **Every payment records** the amount, currency, booking, customer, business, platform fee,
+  provider amount, status, our reference and the provider's transaction reference, payment channel
+  and payment date. The database works out the business, rate, fee and provider amount from the
+  booking (`check_payment_matches_booking`), so they can't be sent from outside or changed later.
+- **Never trusted from the browser.** Returning from checkout only triggers a server-to-server
+  verification with the provider (amount, currency and reference must match). Webhooks are checked
+  against the provider's signature, stored once in `payment_webhook_events` (replays are
+  ignored), and then verified with the provider again before anything changes. A payment is marked
+  successful, and the booking confirmed, only after that.
+- **Payouts.** Completing a job creates a payout of the payment's provider amount. The business adds
+  its bank account on **Earnings**; the account name comes from the bank, not from what was typed.
+  On the admin **Payouts** page, **Pay out** (or **Pay all ready**) sends a transfer with our own
+  reference. A payout is claimed before any money moves, so a double click can't pay twice; a failed
+  transfer goes back to the list with the bank's reason. Payouts stay on hold during a dispute and
+  are withheld when a booking is refunded.
+- **Refunds** go through the provider's refund API. Some finish later; the refund webhook moves the
+  booking to `refunded` then.
+- **Admin pages:** **Payments** (every payment with its split, filters and totals) and **Payouts**.
 
 ## Business platform
 
@@ -292,7 +331,7 @@ suspended → under review. Only the server changes a status, after checking the
 - **Booking rules.** Owners can pause new bookings and set a notice period, how far ahead customers
   can book and a daily limit. Booking requests are checked against them on the server.
 - **Earnings.** Completing a job records a payout: the booking total minus the platform commission
-  (`commission_rate_bps`, currently 10%). Paying it out comes with the payments stage.
+  (`commission_rate_bps`, set by an admin). It's sent to the bank account on the Earnings page.
 - **Admin review** (private admin link, `/businesses`): the team sees each registration, opens
   documents through short-lived links, requests more information, accepts or rejects documents and
   approves, rejects, suspends or reinstates the business. Every decision is logged and the owner is
@@ -383,7 +422,7 @@ and the statistics function can only be called by the server, never from a brows
   after it's completed. The booking becomes "In dispute" and the business's payout is held. An admin
   then sides with the business (booking completed, payout released), refunds the customer (booking
   cancelled, payout withheld, refund recorded as due) or dismisses it (booking goes back to where it
-  was). Actual refunds are paid in the payments stage.
+  was). The refund is then sent from the booking page.
 - **Revenue** is what customers paid, less refunds. **Platform fees** are the commission on
   payouts plus any service fees. Each booking keeps the commission rate it was made at.
 - **Suspending a business owner** also takes their live business off the marketplace. Admins can't
