@@ -603,6 +603,28 @@ the price from the catalogue and only lets the owner of an approved business pay
 verified with the provider (callback or webhook) and then `complete_business_charge` records it and
 switches on the plan or placement in one step, once.
 
+## Analytics
+
+Admins see `<admin>/analytics`: sign-ups, searches, AI conversations, provider matches, profile views,
+booking requests through to completion, cancellations, money (customer payments, commission, provider
+earnings, average booking value), popular categories and locations, and conversion rates, for the last
+7, 30 or 90 days or 12 months. Numbers come from `get_platform_analytics()` (service role only).
+Approved businesses see their own last 30 days on `/business` (`get_business_analytics()`, called after
+the ownership check).
+
+Most figures come from records the platform already keeps. Three things are logged as anonymous events
+in `analytics_events` (server writes only, no client access):
+
+- **Searches** on `/search` (first page, when something was asked for) and one per concierge message
+  that searched. Recorded after the response with `after()` (`src/lib/analytics/track.ts`).
+- **Provider matches**: one row per provider a search showed.
+- **Profile views**: counted by the page in the browser (`ProfileViewTracker`), once per tab session,
+  rate limited, never for the owner or admins.
+
+Events hold an event type, business, category and the state or city the platform recognised. No user
+id, IP address, device details or search wording. Crawlers and link previews are skipped by user agent.
+Events older than two years are deleted daily (cron `analytics-retention`).
+
 ## Security
 
 - **Access:** every page and action checks the user on the server (`src/lib/auth/session.ts`, which

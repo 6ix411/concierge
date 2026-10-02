@@ -27,6 +27,7 @@ export const rateLimits = {
   "chat.report": { limit: 20, windowSeconds: 60 * 60 },
   "concierge.user": { limit: 30, windowSeconds: 10 * 60 },
   "concierge.visitor": { limit: 60, windowSeconds: 10 * 60 },
+  "analytics.view": { limit: 120, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 
 export type RateLimitRule = keyof typeof rateLimits;

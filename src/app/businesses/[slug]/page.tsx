@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { Container } from "@/components/layout/container";
 import { AvailabilityTable } from "@/components/marketplace/availability-table";
+import { ProfileViewTracker } from "@/components/marketplace/profile-view-tracker";
 import { BusinessAvatar, BusinessCover } from "@/components/marketplace/business-avatar";
 import { Rating } from "@/components/marketplace/rating";
 import { completedLabel } from "@/components/marketplace/business-card";
@@ -57,6 +58,7 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
 
   return (
     <Container className="flex flex-col gap-8 py-4 pb-28 sm:py-8 md:pb-10">
+      <ProfileViewTracker businessId={business.id} />
       <header className="flex flex-col gap-4">
         <BusinessCover name={business.name} coverPath={business.cover_path} />
         <div className="-mt-12 flex items-end gap-4 px-2 sm:-mt-14">

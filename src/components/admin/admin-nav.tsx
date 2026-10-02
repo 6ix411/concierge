@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 
 const links = [
   { path: "", label: "Overview" },
+  { path: "/analytics", label: "Analytics" },
   { path: "/businesses", label: "Providers" },
   { path: "/bookings", label: "Bookings" },
   { path: "/payments", label: "Payments" },

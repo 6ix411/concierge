@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Container } from "@/components/layout/container";
 import { ResultsList } from "@/components/marketplace/results-list";
 import { SearchFilters } from "@/components/marketplace/search-filters";
+import { trackSearch } from "@/lib/analytics/track";
 import { getCategories, searchBusinesses } from "@/lib/marketplace/queries";
 import { parseSearchParams } from "@/lib/marketplace/search-params";
 
@@ -12,6 +13,14 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const raw = await searchParams;
   const params = parseSearchParams(raw);
   const [categories, results] = await Promise.all([getCategories(), searchBusinesses(params)]);
+  // A search is counted once, on its first page, when the customer has asked for something.
+  if (params.page === 1 && (params.query || params.category || params.location))
+    await trackSearch({
+      source: "search",
+      categorySlug: params.category,
+      location: params.location,
+      businessIds: results.map((result) => result.id),
+    });
 
   const pageHref = (page: number) => {
     const next = new URLSearchParams();

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { trackSearch } from "@/lib/analytics/track";
 import { getAnthropic, getConciergeModel, isAiConfigured } from "@/lib/ai/anthropic";
 import { lagosToday } from "@/lib/dates";
 import { logger } from "@/lib/errors";
@@ -155,6 +156,15 @@ export async function answer(
 
   const { draft, facts } = result;
   const requirements = facts.lastRequirements;
+  // One search per customer message, however many lookups it took: the last one is what they saw.
+  const search = facts.searches.at(-1);
+  if (search)
+    await trackSearch({
+      source: "concierge",
+      categorySlug: search.requirements.category?.slug,
+      location: search.requirements.location,
+      businessIds: search.matchIds,
+    });
   return {
     reply: {
       message: draft.message,

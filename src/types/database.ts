@@ -134,6 +134,57 @@ export type Database = {
           },
         ];
       };
+      analytics_events: {
+        Row: {
+          business_id: string | null;
+          category_id: string | null;
+          city: string | null;
+          event_type: Database["public"]["Enums"]["analytics_event_type"];
+          id: number;
+          occurred_at: string;
+          result_count: number | null;
+          source: string;
+          state: string | null;
+        };
+        Insert: {
+          business_id?: string | null;
+          category_id?: string | null;
+          city?: string | null;
+          event_type: Database["public"]["Enums"]["analytics_event_type"];
+          id?: never;
+          occurred_at?: string;
+          result_count?: number | null;
+          source: string;
+          state?: string | null;
+        };
+        Update: {
+          business_id?: string | null;
+          category_id?: string | null;
+          city?: string | null;
+          event_type?: Database["public"]["Enums"]["analytics_event_type"];
+          id?: never;
+          occurred_at?: string;
+          result_count?: number | null;
+          source?: string;
+          state?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "analytics_events_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "service_categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       booking_events: {
         Row: {
           actor_id: string | null;
@@ -2343,6 +2394,17 @@ export type Database = {
           id: string;
         }[];
       };
+      get_business_analytics: {
+        Args: { p_business_id: string; p_from: string; p_to: string };
+        Returns: {
+          booking_requests: number;
+          cancellations: number;
+          completed_bookings: number;
+          confirmed_bookings: number;
+          profile_views: number;
+          search_appearances: number;
+        }[];
+      };
       get_business_stats: {
         Args: { p_business_id: string };
         Returns: {
@@ -2353,6 +2415,7 @@ export type Database = {
           rating_breakdown: number[];
         }[];
       };
+      get_platform_analytics: { Args: { p_from: string; p_to: string; top_n?: number }; Returns: Json };
       get_public_reviews: {
         Args: { p_business_id: string; p_limit?: number; p_offset?: number };
         Returns: {
@@ -2456,12 +2519,14 @@ export type Database = {
         }[];
       };
       owns_business: { Args: { target_business_id: string }; Returns: boolean };
+      prune_analytics_events: { Args: Record<PropertyKey, never>; Returns: number };
       queue_billing_reminders: { Args: Record<PropertyKey, never>; Returns: number };
       queue_scheduled_notifications: { Args: Record<PropertyKey, never>; Returns: number };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };
     Enums: {
       ai_message_role: "user" | "assistant" | "tool";
+      analytics_event_type: "search" | "provider_match" | "profile_view";
       booking_status:
         | "quote_requested"
         | "quoted"
@@ -2616,6 +2681,7 @@ export const Constants = {
   public: {
     Enums: {
       ai_message_role: ["user", "assistant", "tool"],
+      analytics_event_type: ["search", "provider_match", "profile_view"],
       booking_status: [
         "quote_requested",
         "quoted",
