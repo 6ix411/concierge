@@ -264,7 +264,6 @@ set search_path = ''
 as $$
 declare
   c public.business_charges;
-  plan public.subscription_plans;
   pkg public.featured_packages;
   current_sub public.business_subscriptions;
   starts timestamptz;
@@ -282,7 +281,6 @@ begin
   end if;
 
   if c.kind = 'subscription' then
-    select * into plan from public.subscription_plans where code = c.item_code;
     select * into current_sub from public.business_subscriptions s
     where s.business_id = c.business_id and s.status = 'active' and s.period_end > now()
     order by s.period_end desc limit 1;
