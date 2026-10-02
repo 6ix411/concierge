@@ -27,7 +27,12 @@ export class Facts {
   readonly providers = new Map<string, ProviderFact>();
   /** The latest search row per provider, used for the cards. */
   readonly matches = new Map<string, Match>();
-  readonly searches: { requirements: Requirements; resultCount: number; fullMatches: number }[] = [];
+  readonly searches: {
+    requirements: Requirements;
+    resultCount: number;
+    fullMatches: number;
+    matchIds: string[];
+  }[] = [];
   /** Dates the concierge checked availability for. */
   readonly datesChecked = new Set<string>();
   lastRequirements: Requirements | null = null;
@@ -63,6 +68,7 @@ export class Facts {
       requirements,
       resultCount: matches.length,
       fullMatches: matches.filter(isFullMatch).length,
+      matchIds: matches.map((match) => match.id),
     });
     this.lastRequirements = requirements;
     for (const match of matches) this.addMatch(match, requirements.date);

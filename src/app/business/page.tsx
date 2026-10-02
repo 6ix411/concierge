@@ -7,6 +7,8 @@ import { BusinessBookingList } from "@/components/business/business-booking-list
 import { StatusCard } from "@/components/business/status-card";
 import { SubmitForReview } from "@/components/business/submit-for-review";
 import { EmptyState, LinkButton } from "@/components/ui";
+import { getBusinessAnalytics } from "@/lib/analytics/queries";
+import { rate } from "@/lib/analytics/rules";
 import { listBusinessBookings } from "@/lib/business/booking-queries";
 import { monthlyEarnings } from "@/lib/business/earnings";
 import { onboardingSteps } from "@/lib/business/onboarding";
@@ -14,6 +16,7 @@ import { getOnboardingProgress, getStatusNote, requireOwnBusiness } from "@/lib/
 import { canSubmitForReview } from "@/lib/business/status";
 import { formatNaira } from "@/lib/format";
 import { doneStatuses } from "@/lib/bookings/rules";
+import { periodStart } from "@/lib/revenue/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Business dashboard" };
@@ -47,7 +50,8 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
   const supabase = await createClient();
 
   const inSetup = canSubmitForReview(business.status);
-  const [progress, note, requests, upcoming, paid, openRequests] = await Promise.all([
+  const approved = business.status === "approved";
+  const [progress, note, requests, upcoming, paid, openRequests, insights] = await Promise.all([
     inSetup ? getOnboardingProgress(business) : null,
     getStatusNote(business.id),
     listBusinessBookings(business.id, "requests", 5),
@@ -62,6 +66,7 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
       .select("id", { count: "exact", head: true })
       .eq("business_id", business.id)
       .eq("status", "open"),
+    approved ? getBusinessAnalytics(business.id, periodStart(30)) : null,
   ]);
   const thisMonth = monthlyEarnings(paid.data ?? [], 1)[0]?.netMinor ?? 0;
   const setupDone = progress ? onboardingSteps.every((step) => progress[step.key]) : true;
@@ -81,7 +86,7 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
         status={business.status}
         note={note}
         action={
-          business.status === "approved" ? (
+          approved ? (
             <LinkButton href={`/businesses/${business.slug}`} variant="outline" size="sm">
               View public profile
             </LinkButton>
@@ -174,6 +179,39 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
           href="/business/reviews"
         />
       </div>
+
+      {insights && (
+        <section
+          aria-labelledby="insights-heading"
+          className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4"
+        >
+          <div>
+            <h2 id="insights-heading" className="font-semibold">
+              Last 30 days
+            </h2>
+            <p className="text-sm text-muted">How customers found you on Concierge.</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4" data-testid="business-insights">
+            {[
+              { label: "Shown in searches", value: insights.search_appearances },
+              { label: "Profile views", value: insights.profile_views },
+              { label: "Booking requests", value: insights.booking_requests },
+              { label: "Completed bookings", value: insights.completed_bookings },
+            ].map((item) => (
+              <div key={item.label} className="flex flex-col">
+                <dt className="text-xs text-muted">{item.label}</dt>
+                <dd className="text-xl font-semibold tabular-nums">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {insights.profile_views > 0 && (
+            <p className="text-sm text-muted">
+              {rate(insights.booking_requests, insights.profile_views)} of profile views became a booking
+              request.
+            </p>
+          )}
+        </section>
+      )}
 
       <section aria-labelledby="requests-heading" className="flex flex-col gap-3">
         <div className="flex items-end justify-between">
