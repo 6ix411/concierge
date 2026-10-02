@@ -287,7 +287,7 @@ export function ChatThread({
             event.preventDefault();
             send();
           }}
-          className="sticky bottom-16 flex flex-col gap-2 border-t border-border bg-background pt-3 pb-2 md:bottom-0"
+          className="sticky bottom-(--bottom-nav) flex flex-col gap-2 border-t border-border bg-background pt-3 pb-2"
         >
           {error && (
             <p role="alert" className="text-sm text-danger">

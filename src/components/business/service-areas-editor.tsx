@@ -31,7 +31,7 @@ export function ServiceAreasEditor({ areas, defaultState }: { areas: Area[]; def
                   <button
                     type="submit"
                     aria-label={`Remove ${label}`}
-                    className="rounded-full p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+                    className="-my-1 rounded-full p-2 text-muted hover:bg-surface-muted hover:text-foreground"
                   >
                     <X aria-hidden className="size-3.5" />
                   </button>

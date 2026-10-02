@@ -1,5 +1,6 @@
 import { BusinessCard } from "@/components/marketplace/business-card";
-import { Button, EmptyState, LinkButton } from "@/components/ui";
+import { EmptyState, LinkButton } from "@/components/ui";
+import { CompareSubmit } from "@/components/marketplace/compare-submit";
 import { MatchReasons } from "@/components/marketplace/match-reasons";
 import type { SearchResult } from "@/lib/marketplace/queries";
 import { PAGE_SIZE } from "@/lib/marketplace/search-params";
@@ -63,11 +64,7 @@ export function ResultsList({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        {visible.length > 1 && (
-          <Button type="submit" variant="outline">
-            Compare selected
-          </Button>
-        )}
+        {visible.length > 1 && <CompareSubmit />}
         <div className="ml-auto flex gap-2">
           {page > 1 && (
             <LinkButton href={pageHref(page - 1)} variant="ghost">

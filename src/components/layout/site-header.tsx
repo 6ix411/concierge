@@ -9,7 +9,7 @@ import { countUnread } from "@/lib/notifications/queries";
 
 import { Container } from "./container";
 
-const navLink = "hover:bg-surface-muted rounded-xl px-3 py-2 font-medium";
+const navLink = "hover:bg-surface-muted rounded-xl px-3 py-2 font-medium whitespace-nowrap";
 
 export async function SiteHeader() {
   const user = await getSessionUser().catch(() => null);
@@ -19,8 +19,15 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
       <Container className="flex h-14 items-center justify-between gap-3">
-        <Link href="/" className="text-base font-semibold tracking-tight">
-          Concierge <span className="font-normal text-muted">by 6IX</span>
+        <Link href="/" className="py-2 text-base font-semibold tracking-tight whitespace-nowrap">
+          Concierge{" "}
+          <span
+            className={
+              isCustomerSide ? "font-normal text-muted" : "font-normal text-muted max-[399px]:hidden"
+            }
+          >
+            by 6IX
+          </span>
         </Link>
         <nav aria-label="Site" className="flex items-center gap-1 text-sm">
           {isCustomerSide && (

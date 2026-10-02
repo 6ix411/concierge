@@ -66,12 +66,20 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
     <Container className="flex flex-col gap-6 py-6 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Compare providers</h1>
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-sm">
+        {/* On phones two providers fit side by side; more scroll sideways under the fixed labels. */}
+        <table
+          className="w-full border-separate border-spacing-0 text-left text-sm"
+          style={{ minWidth: 80 + businesses.length * 140 }}
+        >
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 w-28 bg-background" />
+              <th scope="col" className="sticky left-0 z-10 w-20 bg-background sm:w-28" />
               {businesses.map((b) => (
-                <th key={b.id} scope="col" className="border-b border-border p-3 align-top font-normal">
+                <th
+                  key={b.id}
+                  scope="col"
+                  className="border-b border-border p-2 align-top font-normal sm:p-3"
+                >
                   <div className="flex flex-col gap-2">
                     <BusinessAvatar name={b.name} logoPath={b.logo_path} size="sm" />
                     <Link href={`/businesses/${b.slug}`} className="font-semibold hover:underline">
@@ -88,22 +96,22 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
               <tr key={row.label}>
                 <th
                   scope="row"
-                  className="sticky left-0 border-b border-border bg-background p-3 align-top font-medium text-muted"
+                  className="sticky left-0 z-10 border-b border-border bg-background py-2 pr-2 align-top text-xs font-medium text-muted sm:p-3 sm:text-sm"
                 >
                   {row.label}
                 </th>
                 {businesses.map((b) => (
-                  <td key={b.id} className="border-b border-border p-3 align-top">
+                  <td key={b.id} className="border-b border-border p-2 align-top sm:p-3">
                     {row.render(b)}
                   </td>
                 ))}
               </tr>
             ))}
             <tr>
-              <td className="sticky left-0 bg-background" />
+              <td className="sticky left-0 z-10 bg-background" />
               {businesses.map((b) => (
-                <td key={b.id} className="p-3">
-                  <LinkButton href={`/book/${b.slug}`} size="sm">
+                <td key={b.id} className="p-2 sm:p-3">
+                  <LinkButton href={`/book/${b.slug}`} size="sm" className="w-full sm:w-auto">
                     Book
                   </LinkButton>
                 </td>

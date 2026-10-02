@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
     { media: "(prefers-color-scheme: dark)", color: "#0e1015" },
@@ -31,7 +32,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const showBottomNav = !user || user.role === "customer";
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className={`flex min-h-full flex-col font-sans ${showBottomNav ? "pb-16 md:pb-0" : ""}`}>
+      <body
+        className={`flex min-h-full flex-col font-sans ${showBottomNav ? "has-bottom-nav pb-(--bottom-nav)" : ""}`}
+      >
         <SiteHeader />
         <main className="flex flex-1 flex-col">{children}</main>
         <SiteFooter />
