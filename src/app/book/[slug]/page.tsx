@@ -46,7 +46,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
       ? date
       : undefined;
   return (
-    <Container className="grid gap-8 py-6 sm:py-10 lg:grid-cols-[1fr_320px]">
+    <Container className="grid gap-8 pt-6 pb-24 sm:pt-10 md:pb-10 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <BusinessAvatar name={business.name} logoPath={business.logo_path} size="sm" />

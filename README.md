@@ -625,6 +625,26 @@ Events hold an event type, business, category and the state or city the platform
 id, IP address, device details or search wording. Crawlers and link previews are skipped by user agent.
 Events older than two years are deleted daily (cron `analytics-retention`).
 
+## Mobile
+
+Customers should be able to go from discovery to review on a phone. On screens under 768px:
+
+- Customers and visitors get a tab bar (Home, Concierge, Explore, Bookings, Messages). Its height is the
+  CSS variable `--bottom-nav` (0 when there is no tab bar, and on larger screens); anything fixed or
+  sticky at the bottom sits on top of it with `bottom-(--bottom-nav)`, and the page scrolls focused
+  fields clear of it. `viewport-fit=cover` plus `env(safe-area-inset-bottom)` keeps it off the iPhone
+  home bar.
+- Search shows Service, Area and Search; the other filters fold behind "More filters" so results start
+  on the first screen.
+- Ticking Compare on search results brings up a compare bar above the tab bar.
+- The booking form shows a total and Send request bar until the summary card is on screen.
+- The compare table fits two providers side by side under fixed row labels; more scroll sideways.
+- Form fields are at least 16px so iOS doesn't zoom when one is focused.
+
+The browser suite `e2e-mobile19` walks the whole journey on an iPhone-sized screen by tapping:
+concierge match, compare, book, business accepts, pay, chat both ways, complete, review, and checks
+every page fits a 320px screen.
+
 ## Security
 
 - **Access:** every page and action checks the user on the server (`src/lib/auth/session.ts`, which

@@ -141,7 +141,7 @@ export function ReviewForm({ bookingId }: { bookingId: string }) {
         )}
       </fieldset>
       <details className="rounded-xl bg-surface-muted p-3 text-sm">
-        <summary className="cursor-pointer font-medium">Review guidelines</summary>
+        <summary className="cursor-pointer py-2 font-medium">Review guidelines</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
           {reviewGuidelines.map((rule) => (
             <li key={rule}>{rule}</li>

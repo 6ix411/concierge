@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { priceLabel } from "@/components/marketplace/service-list";
@@ -115,6 +115,16 @@ export function BookingForm({
   bookingFee?: BookingFeeRule;
 }) {
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  // On phones a slim total-and-send bar follows the customer until the summary itself is on screen.
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  useEffect(() => {
+    const node = summaryRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setSummaryVisible(Boolean(entry?.isIntersecting)));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const mainServices = services.filter((service) => !service.is_addon && !service.is_package);
   const packages = services.filter((service) => service.is_package && !service.is_addon);
   const addons = services.filter((service) => service.is_addon);
@@ -409,7 +419,7 @@ export function BookingForm({
         </div>
       </Section>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+      <div ref={summaryRef} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
         {chosen.length > 0 && (
           <ul className="flex flex-col gap-1 text-sm">
             {chosen.map((service) => (
@@ -446,6 +456,21 @@ export function BookingForm({
           {needsQuote ? "Send quote request" : "Send booking request"}
         </Button>
       </div>
+
+      {chosen.length > 0 && !summaryVisible && (
+        <div
+          className="fixed inset-x-0 bottom-(--bottom-nav) z-20 flex items-center gap-3 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden"
+          data-testid="booking-bar"
+        >
+          <p className="flex flex-1 flex-col">
+            <span className="text-xs text-muted">{needsQuote ? "Estimate" : "Total"}</span>
+            <span className="font-semibold">{estimate > 0 ? formatNaira(estimate) : "Quote"}</span>
+          </p>
+          <Button type="submit" loading={pending}>
+            Send request
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

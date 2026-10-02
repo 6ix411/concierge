@@ -38,7 +38,7 @@ export default async function ServicesPage() {
                   <li key={child.id}>
                     <Link
                       href={`/services/${child.slug}`}
-                      className="inline-block rounded-full border border-border px-3 py-1 text-sm hover:bg-surface-muted"
+                      className="inline-block rounded-full border border-border px-3 py-2 text-sm hover:bg-surface-muted"
                     >
                       {child.name}
                     </Link>

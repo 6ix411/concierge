@@ -81,7 +81,7 @@ export function ConciergeBox({
                 ref.current.value = example;
                 ref.current.focus();
               }}
-              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted hover:text-foreground"
+              className="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm text-muted hover:text-foreground"
             >
               {example}
             </button>

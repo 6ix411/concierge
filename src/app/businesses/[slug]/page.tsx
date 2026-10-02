@@ -280,7 +280,7 @@ export default async function BusinessProfilePage({ params }: PageProps<"/busine
       </div>
 
       {!paused && (
-        <div className="fixed inset-x-0 bottom-16 z-20 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden">
+        <div className="fixed inset-x-0 bottom-(--bottom-nav) z-20 flex gap-2 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden">
           <LinkButton href={`/book/${business.slug}`} className="flex-1">
             Book now
           </LinkButton>
