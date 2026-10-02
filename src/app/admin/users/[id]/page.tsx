@@ -12,13 +12,14 @@ import { adminHref } from "@/lib/auth/admin-path";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { AppError } from "@/lib/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "User" };
 
 export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
   const me = await requireAreaAccess("admin");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const db = createAdminClient();
   const { data: user, error } = await db
     .from("users")

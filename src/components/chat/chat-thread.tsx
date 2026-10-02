@@ -5,14 +5,16 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui";
 import type { ChatMessage } from "@/lib/chat/queries";
+import { sendAttachmentMessageAction } from "@/lib/chat/attachments";
 import {
-  ACCEPTED_ATTACHMENTS,
+  CHAT_ATTACHMENT_TYPES,
   MAX_ATTACHMENT_BYTES,
   formatFileSize,
   isSeen,
   sharesContactDetails,
 } from "@/lib/chat/rules";
 import { formatDateTime } from "@/lib/format";
+import { extensions, type SniffedType } from "@/lib/security/files";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 
@@ -142,7 +144,7 @@ export function ChatThread({
 
   const chooseFile = (chosen: File | null) => {
     setError(null);
-    if (chosen && !ACCEPTED_ATTACHMENTS.includes(chosen.type)) {
+    if (chosen && !(CHAT_ATTACHMENT_TYPES as readonly string[]).includes(chosen.type)) {
       setError("That type of file can't be sent. Photos, videos, PDFs and Word or Excel files are allowed.");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -163,20 +165,10 @@ export function ChatThread({
     setError(null);
     startSending(async () => {
       const client = supabase();
-      let attachment: Pick<
-        ChatMessage,
-        "attachment_path" | "attachment_type" | "attachment_name" | "attachment_size" | "attachment_url"
-      > = {
-        attachment_path: null,
-        attachment_type: null,
-        attachment_name: null,
-        attachment_size: null,
-        attachment_url: null,
-      };
 
+      // A file goes to the conversation's folder, then the server checks it and sends the message.
       if (file) {
-        const safeName = file.name.replace(/[^\w.-]+/g, "_").slice(-80);
-        const path = `${conversationId}/${crypto.randomUUID()}-${safeName}`;
+        const path = `${conversationId}/${crypto.randomUUID()}.${extensions[file.type as SniffedType] ?? "bin"}`;
         const upload = await client.storage.from("chat-attachments").upload(path, file, {
           contentType: file.type,
         });
@@ -184,31 +176,40 @@ export function ChatThread({
           setError("That file couldn’t be uploaded. Please try again.");
           return;
         }
-        const { data } = await client.storage.from("chat-attachments").createSignedUrl(path, 3600);
-        attachment = {
-          attachment_path: path,
-          attachment_type: file.type,
-          attachment_name: file.name.slice(0, 200),
-          attachment_size: file.size,
-          attachment_url: data?.signedUrl ?? null,
-        };
+        const result = await sendAttachmentMessageAction({
+          conversationId,
+          path,
+          name: file.name.slice(0, 200),
+          body: text || undefined,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        const { data: signed } = await client.storage.from("chat-attachments").createSignedUrl(path, 3600);
+        addMessage({ ...result.message, attachment_url: signed?.signedUrl ?? null });
+        setBody("");
+        setFile(null);
+        if (fileRef.current) fileRef.current.value = "";
+        return;
       }
 
-      const { attachment_url, ...stored } = attachment;
       const { data, error: insertError } = await client
         .from("messages")
-        .insert({ conversation_id: conversationId, sender_id: currentUserId, body: text || null, ...stored })
+        .insert({ conversation_id: conversationId, sender_id: currentUserId, body: text })
         .select(MESSAGE_COLUMNS)
         .single();
       if (insertError || !data) {
         setError(
-          insertError?.message.includes("blocked") || insertError?.message.includes("restricted")
-            ? "This conversation can't receive messages right now."
-            : "Your message wasn’t sent. Please try again.",
+          insertError?.message.includes("too quickly")
+            ? "You’re sending messages too quickly. Please wait a moment."
+            : insertError?.message.includes("blocked") || insertError?.message.includes("restricted")
+              ? "This conversation can't receive messages right now."
+              : "Your message wasn’t sent. Please try again.",
         );
         return;
       }
-      addMessage({ ...data, attachment_url });
+      addMessage({ ...data, attachment_url: null });
       setBody("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -313,7 +314,7 @@ export function ChatThread({
             <input
               ref={fileRef}
               type="file"
-              accept={ACCEPTED_ATTACHMENTS.join(",")}
+              accept={CHAT_ATTACHMENT_TYPES.join(",")}
               className="sr-only"
               id="chat-file"
               onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}

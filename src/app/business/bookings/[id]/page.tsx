@@ -16,12 +16,13 @@ import { businessBookingActions } from "@/lib/business/booking-rules";
 import { commissionFor, paidStatuses } from "@/lib/business/earnings";
 import { requireOwnBusiness } from "@/lib/business/queries";
 import { formatDateTime, formatNaira } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 
 export const metadata: Metadata = { title: "Booking" };
 
 export default async function BusinessBookingPage({ params }: PageProps<"/business/bookings/[id]">) {
   const { business } = await requireOwnBusiness();
-  const { id } = await params;
+  const id = pageId((await params).id);
   const booking = await getBusinessBooking(id, business.id);
   if (!booking) notFound();
 

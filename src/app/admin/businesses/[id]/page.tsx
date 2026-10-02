@@ -21,6 +21,7 @@ import { requireAreaAccess } from "@/lib/auth/session";
 import { documentStatusInfo, documentTypeLabels } from "@/lib/business/verification";
 import { AppError } from "@/lib/errors";
 import { formatDate, formatDateTime, weekdayNames } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Review business" };
@@ -38,7 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function AdminBusinessPage({ params }: PageProps<"/admin/businesses/[id]">) {
   await requireAreaAccess("admin");
-  const { id } = await params;
+  const id = pageId((await params).id);
   // Admin-only page: reads with the service role after the admin check above.
   const db = createAdminClient();
   const { data: business, error } = await db

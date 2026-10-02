@@ -29,6 +29,7 @@ import { bookingStatusLabels } from "@/lib/bookings/rules";
 import { getAdminDisputeThread } from "@/lib/disputes/queries";
 import { AppError } from "@/lib/errors";
 import { formatDateTime, formatNaira } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Dispute" };
@@ -37,7 +38,7 @@ const outcomeOrder: DisputeOutcome[] = ["business", "customer", "dismissed"];
 
 export default async function AdminDisputePage({ params }: PageProps<"/admin/disputes/[id]">) {
   await requireAreaAccess("admin");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const { data: dispute, error } = await createAdminClient()
     .from("disputes")
     .select(

@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth/session";
 import { toFormError } from "@/lib/business/action-utils";
 import { AppError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,6 +63,7 @@ export async function reportAction(_prev: FormState, formData: FormData): Promis
       return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the report." };
     const { conversationId, messageId, reason, details } = parsed.data;
     const { user, otherId } = await participantContext(conversationId);
+    await enforceRateLimit("chat.report", user.id);
     const admin = createAdminClient();
 
     if (messageId) {
@@ -121,6 +123,7 @@ export async function reportAction(_prev: FormState, formData: FormData): Promis
 export async function blockAction(conversationId: string, _prev: FormState): Promise<FormState> {
   try {
     const { user, otherId, conversation } = await participantContext(z.guid().parse(conversationId));
+    await enforceRateLimit("chat.report", user.id);
     const { error } = await createAdminClient()
       .from("user_blocks")
       .upsert({ blocker_id: user.id, blocked_id: otherId, conversation_id: conversation.id });

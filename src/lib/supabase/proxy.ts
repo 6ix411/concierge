@@ -10,9 +10,20 @@ export type SessionUpdate = {
   getActiveRole: () => Promise<Database["public"]["Enums"]["user_role"] | null>;
 };
 
-/** Refreshes the Supabase auth session on every matched request and forwards updated cookies. */
-export async function updateSession(request: NextRequest): Promise<SessionUpdate> {
-  let response = NextResponse.next({ request });
+/**
+ * Refreshes the Supabase auth session on every matched request and forwards updated cookies.
+ * `extraHeaders` are added to the request the app sees (e.g. the Content Security Policy).
+ */
+export async function updateSession(
+  request: NextRequest,
+  extraHeaders: Record<string, string> = {},
+): Promise<SessionUpdate> {
+  const forward = () => {
+    const headers = new Headers(request.headers);
+    for (const [key, value] of Object.entries(extraHeaders)) headers.set(key, value);
+    return NextResponse.next({ request: { headers } });
+  };
+  let response = forward();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -26,7 +37,7 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
       },
       setAll(cookiesToSet, headers) {
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
-        response = NextResponse.next({ request });
+        response = forward();
         for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
         for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
       },

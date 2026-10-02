@@ -8,13 +8,14 @@ import { requireAreaAccess } from "@/lib/auth/session";
 import { canCustomerPay } from "@/lib/bookings/rules";
 import { formatDateTime, formatNaira } from "@/lib/format";
 import { startCheckoutAction } from "@/lib/payments/actions";
+import { pageId } from "@/lib/security/ids";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage({ params }: PageProps<"/checkout/[bookingId]">) {
   const user = await requireAreaAccess("account");
-  const { bookingId } = await params;
+  const bookingId = pageId((await params).bookingId);
   const supabase = await createClient();
   const { data: booking } = await supabase
     .from("bookings")

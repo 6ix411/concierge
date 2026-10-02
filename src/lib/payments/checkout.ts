@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { getServerEnv } from "@/lib/env/server";
 import { AppError, logger } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { logSecurityEvent } from "@/lib/security/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 
@@ -92,6 +93,15 @@ export async function finalizePayment(
   if (!paid) {
     // Still pending at the provider: leave it for the webhook or a retry.
     if (result.status === "pending") return { bookingId: payment.booking_id, paid: false };
+    if (result.status === "success")
+      await logSecurityEvent("payment.mismatch", {
+        details: {
+          reference,
+          expectedMinor: payment.amount_minor,
+          paidMinor: result.amount.amountMinor,
+          currency: result.amount.currency,
+        },
+      });
     await admin
       .from("payments")
       .update({

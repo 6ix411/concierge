@@ -1641,6 +1641,24 @@ export type Database = {
           },
         ];
       };
+      rate_limit_hits: {
+        Row: {
+          hits: number;
+          key: string;
+          window_start: string;
+        };
+        Insert: {
+          hits?: number;
+          key: string;
+          window_start: string;
+        };
+        Update: {
+          hits?: number;
+          key?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       review_photos: {
         Row: {
           created_at: string;
@@ -1737,6 +1755,41 @@ export type Database = {
           {
             foreignKeyName: "reviews_customer_id_fkey";
             columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      security_events: {
+        Row: {
+          created_at: string;
+          details: NonNullable<Json>;
+          event: string;
+          id: string;
+          ip_hash: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          details?: NonNullable<Json>;
+          event: string;
+          id?: string;
+          ip_hash?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          details?: NonNullable<Json>;
+          event?: string;
+          id?: string;
+          ip_hash?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "security_events_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];
@@ -1961,6 +2014,7 @@ export type Database = {
     };
     Functions: {
       admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
+      concierge_provider_details: { Args: { p_business_id: string }; Returns: Json };
       conversation_counterpart: { Args: { p_conversation_id: string; p_user_id: string }; Returns: string };
       create_booking: {
         Args: { p_booking: Json; p_items: Json };
@@ -2005,6 +2059,10 @@ export type Database = {
           rating: number;
           reviewer_name: string;
         }[];
+      };
+      hit_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
       };
       is_active_user: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };

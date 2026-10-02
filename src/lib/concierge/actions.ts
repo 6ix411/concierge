@@ -1,11 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { z } from "zod";
 
 import { getSessionUser } from "@/lib/auth/session";
 import { logger } from "@/lib/errors";
-import { rateLimit } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 import { loadHistory, saveTurns } from "./history";
 import { answer } from "./service";
@@ -30,10 +29,20 @@ export type AskInput = z.input<typeof askSchema>;
 export type AskResult =
   { ok: true; reply: ConciergeReply; conversationId: string | null } | { ok: false; error: string };
 
-// Per signed-in user, or per network address for visitors (many people can share one mobile IP).
-const USER_LIMIT = 30;
-const VISITOR_LIMIT = 60;
-const WINDOW_MS = 10 * 60 * 1000;
+/**
+ * A visitor's history comes from their browser, so it is untrusted: only the latest turns, within
+ * a size budget. (Providers are re-checked against the database on every message anyway.)
+ */
+function visitorHistory(turns: ChatTurn[]): ChatTurn[] {
+  const kept: ChatTurn[] = [];
+  let budget = 8000;
+  for (const turn of turns.slice(-20).reverse()) {
+    budget -= turn.content.length;
+    if (budget < 0) break;
+    kept.unshift(turn);
+  }
+  return kept;
+}
 
 export async function askConciergeAction(input: AskInput): Promise<AskResult> {
   const parsed = askSchema.safeParse(input);
@@ -44,17 +53,16 @@ export async function askConciergeAction(input: AskInput): Promise<AskResult> {
   if (user && user.status !== "active")
     return { ok: false, error: "Your account can’t use the concierge right now." };
 
-  const requestHeaders = await headers();
-  const ip =
-    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    requestHeaders.get("x-real-ip") ||
-    "unknown";
-  if (!rateLimit(`concierge:${user?.id ?? ip}`, user ? USER_LIMIT : VISITOR_LIMIT, WINDOW_MS))
+  // Per signed-in user, or per network address for visitors (many people can share one mobile IP).
+  const allowed = user
+    ? await checkRateLimit("concierge.user", user.id)
+    : await checkRateLimit("concierge.visitor");
+  if (!allowed)
     return { ok: false, error: "You’re sending messages quickly. Please wait a few minutes and try again." };
 
   try {
     // Signed-in customers' history comes from the database; visitors' from the page they're on.
-    let history: ChatTurn[] = (parsed.data.history ?? []).slice(-20);
+    let history: ChatTurn[] = visitorHistory(parsed.data.history ?? []);
     let conversationId = parsed.data.conversationId ?? null;
     if (user) {
       history = conversationId ? ((await loadHistory(conversationId, user.id)) ?? []) : [];

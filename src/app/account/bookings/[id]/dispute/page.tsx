@@ -4,12 +4,13 @@ import { notFound } from "next/navigation";
 import { DisputeCaseView } from "@/components/disputes/dispute-case";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { getDisputeCase } from "@/lib/disputes/queries";
+import { pageId } from "@/lib/security/ids";
 
 export const metadata: Metadata = { title: "Dispute" };
 
 export default async function CustomerDisputePage({ params }: PageProps<"/account/bookings/[id]/dispute">) {
   const user = await requireAreaAccess("account");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const data = await getDisputeCase(id);
   if (!data || data.booking.customer_id !== user.id) notFound();
   return (

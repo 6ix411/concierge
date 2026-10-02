@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { logger } from "@/lib/errors";
 import { finalizePayment } from "@/lib/payments/checkout";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
   if (!reference || !/^PAY-[A-F0-9]{16}$/.test(reference)) {
     return NextResponse.redirect(new URL("/account/bookings?payment=invalid", request.url));
   }
+  // Each visit asks the provider to verify the payment, so it can't be hammered.
+  if (!(await checkRateLimit("payment.callback")))
+    return NextResponse.redirect(new URL("/account/bookings?payment=error", request.url));
   try {
     const { bookingId, paid } = await finalizePayment(reference);
     return NextResponse.redirect(

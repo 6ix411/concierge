@@ -5,12 +5,13 @@ import { ReviewForm } from "@/components/bookings/review-form";
 import { requireAreaAccess } from "@/lib/auth/session";
 import { getCustomerBooking } from "@/lib/bookings/queries";
 import { canReview } from "@/lib/bookings/rules";
+import { pageId } from "@/lib/security/ids";
 
 export const metadata: Metadata = { title: "Leave a review" };
 
 export default async function ReviewPage({ params }: PageProps<"/account/bookings/[id]/review">) {
   const user = await requireAreaAccess("account");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const booking = await getCustomerBooking(user.id, id);
   if (!booking) notFound();
   if (!canReview({ ...booking, hasReview: Boolean(booking.reviews) })) redirect(`/account/bookings/${id}`);

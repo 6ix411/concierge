@@ -1,3 +1,5 @@
+import type { SniffedType } from "@/lib/security/files";
+
 /** Why someone reports a message or person in a booking chat. */
 export const reportReasons = {
   harassment: { label: "Harassment or abuse" },
@@ -33,7 +35,8 @@ export function formatFileSize(bytes: number | null | undefined): string {
   return `${(bytes / KB / KB).toFixed(1)} MB`;
 }
 
-export const ACCEPTED_ATTACHMENTS = [
+/** What can be sent in chat. The server checks each file's contents, not just its name or type. */
+export const CHAT_ATTACHMENT_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -44,9 +47,7 @@ export const ACCEPTED_ATTACHMENTS = [
   "video/webm",
   "application/pdf",
   "text/plain",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-];
+] as const satisfies SniffedType[];
 export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;

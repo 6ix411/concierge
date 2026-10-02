@@ -18,6 +18,7 @@ const links = [
   { path: "/categories", label: "Categories" },
   { path: "/commission", label: "Commission" },
   { path: "/audit", label: "Audit log" },
+  { path: "/security", label: "Security" },
   { path: "/notifications", label: "Notifications" },
 ];
 

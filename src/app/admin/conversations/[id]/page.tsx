@@ -18,6 +18,7 @@ import { requireAreaAccess } from "@/lib/auth/session";
 import { formatFileSize, reportReasons } from "@/lib/chat/rules";
 import { AppError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Chat" };
@@ -30,7 +31,7 @@ const statusLabels = { open: "Open", closed: "Closed", locked: "Restricted" } as
  */
 export default async function AdminConversationPage({ params }: PageProps<"/admin/conversations/[id]">) {
   const admin = await requireAreaAccess("admin");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const db = createAdminClient();
   const { data: conversation, error } = await db
     .from("conversations")

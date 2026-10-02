@@ -2,12 +2,16 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
-import { requireRole } from "@/lib/auth/session";
+import { getSessionUser, requireRole } from "@/lib/auth/session";
 import { lagosToday } from "@/lib/dates";
 import { AppError } from "@/lib/errors";
 import { activeAdminIds, notify } from "@/lib/notifications";
+import { logSecurityEvent } from "@/lib/security/events";
+import { DOCUMENT_TYPES, IMAGE_TYPES, VIDEO_TYPES, type SniffedType } from "@/lib/security/files";
+import { verifyStoredFile } from "@/lib/security/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -163,6 +167,7 @@ export async function addServiceAreaAction(_prev: FormState, formData: FormData)
 
 export async function removeServiceAreaAction(areaId: string): Promise<void> {
   const { business } = await requireOwnBusinessForAction();
+  if (!isId(areaId)) return;
   const supabase = await createClient();
   await supabase.from("service_areas").delete().eq("id", areaId).eq("business_id", business.id);
   refresh();
@@ -223,6 +228,7 @@ export async function saveServiceAction(_prev: FormState, formData: FormData): P
 
 export async function deleteServiceAction(serviceId: string): Promise<void> {
   const { business } = await requireOwnBusinessForAction();
+  if (!isId(serviceId)) return;
   const supabase = await createClient();
   // Past bookings keep their own copy of the name and price, so deleting is safe.
   await supabase.from("business_services").delete().eq("id", serviceId).eq("business_id", business.id);
@@ -349,6 +355,7 @@ export async function addDayOffAction(_prev: FormState, formData: FormData): Pro
 
 export async function removeAvailabilityAction(availabilityId: string): Promise<void> {
   const { business } = await requireOwnBusinessForAction();
+  if (!isId(availabilityId)) return;
   const supabase = await createClient();
   await supabase
     .from("business_availability")
@@ -357,6 +364,16 @@ export async function removeAvailabilityAction(availabilityId: string): Promise<
     .eq("business_id", business.id)
     .not("specific_date", "is", null);
   refresh();
+}
+
+const isId = (value: unknown) => z.guid().safeParse(value).success;
+
+/** Checks an uploaded file by its contents; a fake is deleted and logged. */
+async function checkUpload(bucket: string, path: string, allowed: readonly SniffedType[]): Promise<boolean> {
+  if (await verifyStoredFile(bucket, path, allowed)) return true;
+  const user = await getSessionUser();
+  await logSecurityEvent("upload.rejected", { userId: user?.id, details: { bucket } });
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -381,6 +398,17 @@ export async function addPortfolioItemAction(input: {
       .eq("business_id", business.id);
     if ((count ?? 0) >= 30)
       return { status: "error", message: "You can show up to 30 items. Remove one first." };
+    if (
+      !(await checkUpload(
+        "business-media",
+        parsed.data.path,
+        parsed.data.mediaType === "image" ? IMAGE_TYPES : VIDEO_TYPES,
+      ))
+    )
+      return {
+        status: "error",
+        message: "That file isn't a real photo or video. Photos: JPG, PNG or WebP. Videos: MP4, MOV or WebM.",
+      };
     const { error } = await supabase.from("business_portfolio").insert({
       business_id: business.id,
       media_type: parsed.data.mediaType,
@@ -398,6 +426,7 @@ export async function addPortfolioItemAction(input: {
 
 export async function removePortfolioItemAction(itemId: string): Promise<void> {
   const { business } = await requireOwnBusinessForAction();
+  if (!isId(itemId)) return;
   const supabase = await createClient();
   const { data } = await supabase
     .from("business_portfolio")
@@ -413,8 +442,10 @@ export async function removePortfolioItemAction(itemId: string): Promise<void> {
 export async function setBusinessImageAction(kind: "logo" | "cover", path: string): Promise<FormState> {
   try {
     const { business } = await requireOwnBusinessForAction();
-    if (!isOwnStoragePath(business.id, path))
+    if ((kind !== "logo" && kind !== "cover") || !isOwnStoragePath(business.id, path))
       return { status: "error", message: "That upload didn't work. Please try again." };
+    if (!(await checkUpload("business-media", path, IMAGE_TYPES)))
+      return { status: "error", message: "That file isn't a real photo. Use a JPG, PNG or WebP image." };
     const column = kind === "logo" ? "logo_path" : "cover_path";
     const previous = business[column];
     const supabase = await createClient();
@@ -449,6 +480,11 @@ export async function submitVerificationDocumentAction(input: {
     const doc = parsed.data;
     if (!isOwnStoragePath(business.id, doc.path))
       return { status: "error", message: "That upload didn't work. Please try again." };
+    if (!(await checkUpload("verification-documents", doc.path, DOCUMENT_TYPES)))
+      return {
+        status: "error",
+        message: "That file isn't a real PDF or photo. Upload a PDF, JPG, PNG or WebP.",
+      };
 
     const supabase = await createClient();
     if (doc.requestId) {
