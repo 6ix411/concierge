@@ -139,12 +139,22 @@ describe("earnings", () => {
   const bookings = [
     {
       status: "completed" as const,
-      total_minor: 100_000_00,
+      subtotal_minor: 100_000_00,
       commission_rate_bps: 1000,
       completed_at: "2026-09-15T10:00:00Z",
     },
-    { status: "confirmed" as const, total_minor: 50_000_00, commission_rate_bps: 1000, completed_at: null },
-    { status: "cancelled" as const, total_minor: 70_000_00, commission_rate_bps: 1000, completed_at: null },
+    {
+      status: "confirmed" as const,
+      subtotal_minor: 50_000_00,
+      commission_rate_bps: 1000,
+      completed_at: null,
+    },
+    {
+      status: "cancelled" as const,
+      subtotal_minor: 70_000_00,
+      commission_rate_bps: 1000,
+      completed_at: null,
+    },
   ];
 
   it("splits paid bookings into earned and upcoming, after commission", () => {

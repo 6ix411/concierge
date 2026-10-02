@@ -54,7 +54,7 @@ export default async function BusinessOverviewPage({ searchParams }: PageProps<"
     listBusinessBookings(business.id, "upcoming", 5),
     supabase
       .from("bookings")
-      .select("status, total_minor, commission_rate_bps, completed_at")
+      .select("status, subtotal_minor, commission_rate_bps, completed_at")
       .eq("business_id", business.id)
       .in("status", doneStatuses),
     supabase

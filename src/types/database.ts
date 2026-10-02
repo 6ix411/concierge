@@ -411,6 +411,81 @@ export type Database = {
           },
         ];
       };
+      business_charges: {
+        Row: {
+          amount_minor: number;
+          business_id: string;
+          channel: string | null;
+          created_at: string;
+          currency: string;
+          failure_reason: string | null;
+          id: string;
+          item_code: string;
+          kind: string;
+          paid_at: string | null;
+          payer_id: string;
+          provider: string;
+          provider_payload: Json | null;
+          provider_reference: string | null;
+          reference: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount_minor: number;
+          business_id: string;
+          channel?: string | null;
+          created_at?: string;
+          currency?: string;
+          failure_reason?: string | null;
+          id?: string;
+          item_code: string;
+          kind: string;
+          paid_at?: string | null;
+          payer_id: string;
+          provider: string;
+          provider_payload?: Json | null;
+          provider_reference?: string | null;
+          reference: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount_minor?: number;
+          business_id?: string;
+          channel?: string | null;
+          created_at?: string;
+          currency?: string;
+          failure_reason?: string | null;
+          id?: string;
+          item_code?: string;
+          kind?: string;
+          paid_at?: string | null;
+          payer_id?: string;
+          provider?: string;
+          provider_payload?: Json | null;
+          provider_reference?: string | null;
+          reference?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "business_charges_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "business_charges_payer_id_fkey";
+            columns: ["payer_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       business_payout_accounts: {
         Row: {
           account_name: string;
@@ -575,6 +650,64 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "service_categories";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      business_subscriptions: {
+        Row: {
+          business_id: string;
+          charge_id: string | null;
+          created_at: string;
+          id: string;
+          period_end: string;
+          period_start: string;
+          plan_code: string;
+          price_minor: number;
+          status: string;
+        };
+        Insert: {
+          business_id: string;
+          charge_id?: string | null;
+          created_at?: string;
+          id?: string;
+          period_end: string;
+          period_start: string;
+          plan_code: string;
+          price_minor: number;
+          status?: string;
+        };
+        Update: {
+          business_id?: string;
+          charge_id?: string | null;
+          created_at?: string;
+          id?: string;
+          period_end?: string;
+          period_start?: string;
+          plan_code?: string;
+          price_minor?: number;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "business_subscriptions_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "business_subscriptions_charge_fk";
+            columns: ["charge_id"];
+            isOneToOne: true;
+            referencedRelation: "business_charges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "business_subscriptions_plan_code_fkey";
+            columns: ["plan_code"];
+            isOneToOne: false;
+            referencedRelation: "subscription_plans";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -1237,6 +1370,118 @@ export type Database = {
           },
         ];
       };
+      featured_packages: {
+        Row: {
+          code: string;
+          duration_days: number;
+          is_active: boolean;
+          name: string;
+          price_minor: number;
+          sort_order: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          code: string;
+          duration_days: number;
+          is_active?: boolean;
+          name: string;
+          price_minor: number;
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          code?: string;
+          duration_days?: number;
+          is_active?: boolean;
+          name?: string;
+          price_minor?: number;
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "featured_packages_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      featured_placements: {
+        Row: {
+          business_id: string;
+          cancel_reason: string | null;
+          cancelled_by: string | null;
+          charge_id: string | null;
+          created_at: string;
+          ends_at: string;
+          id: string;
+          package_code: string;
+          price_minor: number;
+          starts_at: string;
+          status: string;
+        };
+        Insert: {
+          business_id: string;
+          cancel_reason?: string | null;
+          cancelled_by?: string | null;
+          charge_id?: string | null;
+          created_at?: string;
+          ends_at: string;
+          id?: string;
+          package_code: string;
+          price_minor: number;
+          starts_at: string;
+          status?: string;
+        };
+        Update: {
+          business_id?: string;
+          cancel_reason?: string | null;
+          cancelled_by?: string | null;
+          charge_id?: string | null;
+          created_at?: string;
+          ends_at?: string;
+          id?: string;
+          package_code?: string;
+          price_minor?: number;
+          starts_at?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "featured_placements_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "featured_placements_cancelled_by_fkey";
+            columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "featured_placements_charge_fk";
+            columns: ["charge_id"];
+            isOneToOne: true;
+            referencedRelation: "business_charges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "featured_placements_package_code_fkey";
+            columns: ["package_code"];
+            isOneToOne: false;
+            referencedRelation: "featured_packages";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
       messages: {
         Row: {
           attachment_name: string | null;
@@ -1421,6 +1666,7 @@ export type Database = {
       payments: {
         Row: {
           amount_minor: number;
+          booking_fee_minor: number;
           booking_id: string;
           business_id: string;
           channel: string | null;
@@ -1446,6 +1692,7 @@ export type Database = {
         };
         Insert: {
           amount_minor: number;
+          booking_fee_minor?: number;
           booking_id: string;
           business_id: string;
           channel?: string | null;
@@ -1471,6 +1718,7 @@ export type Database = {
         };
         Update: {
           amount_minor?: number;
+          booking_fee_minor?: number;
           booking_id?: string;
           business_id?: string;
           channel?: string | null;
@@ -1878,6 +2126,53 @@ export type Database = {
           },
         ];
       };
+      subscription_plans: {
+        Row: {
+          code: string;
+          commission_rate_bps: number | null;
+          description: string | null;
+          is_active: boolean;
+          monthly_price_minor: number;
+          name: string;
+          perks: string[];
+          sort_order: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          code: string;
+          commission_rate_bps?: number | null;
+          description?: string | null;
+          is_active?: boolean;
+          monthly_price_minor: number;
+          name: string;
+          perks?: string[];
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          code?: string;
+          commission_rate_bps?: number | null;
+          description?: string | null;
+          is_active?: boolean;
+          monthly_price_minor?: number;
+          name?: string;
+          perks?: string[];
+          sort_order?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "subscription_plans_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_blocks: {
         Row: {
           blocked_id: string;
@@ -2014,6 +2309,16 @@ export type Database = {
     };
     Functions: {
       admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
+      complete_business_charge: {
+        Args: {
+          p_channel: string;
+          p_paid_at: string;
+          p_payload: Json;
+          p_provider_reference: string;
+          p_reference: string;
+        };
+        Returns: Json;
+      };
       concierge_provider_details: { Args: { p_business_id: string }; Returns: Json };
       conversation_counterpart: { Args: { p_conversation_id: string; p_user_id: string }; Returns: string };
       create_booking: {
@@ -2024,6 +2329,7 @@ export type Database = {
         }[];
       };
       current_commission_rate_bps: { Args: { p_business_id: string }; Returns: number };
+      current_plan_code: { Args: { p_business_id: string }; Returns: string };
       current_user_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -2060,6 +2366,19 @@ export type Database = {
           reviewer_name: string;
         }[];
       };
+      get_revenue_summary: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          active_featured: number;
+          active_subscriptions: number;
+          booking_fees_minor: number;
+          commission_minor: number;
+          featured_minor: number;
+          paid_bookings: number;
+          refunded_minor: number;
+          subscriptions_minor: number;
+        }[];
+      };
       hit_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };
         Returns: boolean;
@@ -2073,6 +2392,7 @@ export type Database = {
         Args: { p_status: Database["public"]["Enums"]["dispute_status"] };
         Returns: boolean;
       };
+      is_featured_now: { Args: { p_business_id: string }; Returns: boolean };
       is_valid_booking_transition: {
         Args: {
           from_status: Database["public"]["Enums"]["booking_status"];
@@ -2117,6 +2437,7 @@ export type Database = {
           guest_capacity: number;
           has_quote_only: boolean;
           id: string;
+          is_featured: boolean;
           is_verified: boolean;
           location_match: string;
           logo_path: string;
@@ -2135,6 +2456,7 @@ export type Database = {
         }[];
       };
       owns_business: { Args: { target_business_id: string }; Returns: boolean };
+      queue_billing_reminders: { Args: Record<PropertyKey, never>; Returns: number };
       queue_scheduled_notifications: { Args: Record<PropertyKey, never>; Returns: number };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };

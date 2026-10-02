@@ -12,6 +12,7 @@ import { createBookingAction } from "@/lib/bookings/actions";
 import { formatBookingLocation } from "@/lib/bookings/workflow";
 import { addDays, lagosToday } from "@/lib/dates";
 import { getBusinessBySlug } from "@/lib/marketplace/queries";
+import { getBookingFeeRule } from "@/lib/revenue/queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Book" };
@@ -34,6 +35,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const bookingFee = await getBookingFeeRule();
   const today = lagosToday();
   // Earliest day that respects the business's notice period (the server checks the exact time).
   const minDate = addDays(today, Math.max(1, Math.ceil(business.min_notice_hours / 24)));
@@ -81,6 +83,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/boo
             serviceAreas={business.areas.map((area) =>
               formatBookingLocation({ address_line: null, ...area }),
             )}
+            bookingFee={bookingFee}
           />
         )}
       </div>

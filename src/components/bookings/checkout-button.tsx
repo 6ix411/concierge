@@ -10,9 +10,13 @@ import type { CheckoutState } from "@/lib/payments/actions";
 export function CheckoutButton({
   action,
   label,
+  size = "lg",
+  variant = "primary",
 }: {
   action: (prev: CheckoutState) => Promise<CheckoutState>;
   label: string;
+  size?: "md" | "lg";
+  variant?: "primary" | "outline";
 }) {
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const leaving = Boolean(state.redirectTo);
@@ -22,7 +26,7 @@ export function CheckoutButton({
   return (
     <form action={formAction} className="flex flex-col gap-3">
       {state.message && <FormMessage tone="error">{state.message}</FormMessage>}
-      <Button type="submit" size="lg" loading={pending || leaving}>
+      <Button type="submit" size={size} variant={variant} loading={pending || leaving}>
         <Lock aria-hidden className="size-4" />
         {label}
       </Button>

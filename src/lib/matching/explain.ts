@@ -122,6 +122,14 @@ export function explainMatch(match: Match, needs: MatchNeeds): Reason[] {
   return reasons;
 }
 
+/**
+ * Display order for matches gathered from several searches: providers lifted by featured placement
+ * (which the database only does for providers meeting every requirement) first, then best match.
+ */
+export function compareMatches(a: Match, b: Match): number {
+  return Number(b.is_featured) - Number(a.is_featured) || b.score - a.score;
+}
+
 /** True when nothing the customer asked for is known to be missing. */
 export function isFullMatch(match: Match): boolean {
   return (

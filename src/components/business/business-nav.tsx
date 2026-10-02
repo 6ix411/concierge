@@ -14,6 +14,8 @@ const links = [
   { href: "/business/messages", label: "Messages" },
   { href: "/business/earnings", label: "Earnings" },
   { href: "/business/reviews", label: "Reviews" },
+  { href: "/business/plan", label: "Plan" },
+  { href: "/business/promote", label: "Get featured" },
   { href: "/business/verification", label: "Verification" },
 ];
 

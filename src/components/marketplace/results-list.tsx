@@ -56,6 +56,12 @@ export function ResultsList({
           </li>
         ))}
       </ul>
+      {visible.some((business) => business.is_featured) && (
+        <p className="text-xs text-muted">
+          Featured providers pay for placement. They are only shown first when they meet everything you
+          searched for; payment never makes a provider appear in results.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {visible.length > 1 && (
           <Button type="submit" variant="outline">

@@ -248,6 +248,10 @@ const auditLabels: Record<string, string> = {
   "category.update": "Edited a category",
   "category.delete": "Deleted a category",
   "settings.commission": "Changed the platform commission",
+  "settings.plan": "Changed a subscription plan",
+  "settings.featured_package": "Changed a featured placement price",
+  "settings.featured_slots": "Changed the number of featured slots",
+  "settings.booking_fee": "Changed the customer booking fee",
 };
 
 export function auditLabel(action: string): string {
@@ -264,4 +268,6 @@ export const auditTargets: { key: string; label: string }[] = [
   { key: "users", label: "Users" },
   { key: "service_categories", label: "Categories" },
   { key: "platform_settings", label: "Settings" },
+  { key: "subscription_plans", label: "Plans" },
+  { key: "featured_packages", label: "Featured placement" },
 ];

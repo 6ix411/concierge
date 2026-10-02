@@ -574,6 +574,35 @@ and the statistics function can only be called by the server, never from a brows
 - **Suspending a business owner** also takes their live business off the marketplace. Admins can't
   change their own account status.
 
+## Revenue
+
+Four income streams, all set by admins under **Revenue** in the dashboard (`/revenue`):
+
+- **Booking commission:** a percentage of each booking's service price, taken from the business's
+  payout. The order is a business's custom rate, then its plan's rate (if the plan sets one), then the
+  platform rate (**Commission**). Each booking keeps the rate it was made at.
+- **Subscriptions** (`subscription_plans`, `business_subscriptions`): Free, Starter (₦25,000), Growth
+  (₦50,000) and Pro (₦100,000) a month by default, with names, prices, commission and perks editable
+  by admins. Businesses pay on **Plan** (`/business/plan`). Each paid month is one row: renewing adds
+  the next month, and switching plans starts the new one today. With no paid month running, a business
+  is on Free. Owners are reminded before a plan ends. Card auto-renewal is not built yet: providers'
+  recurring billing can be added behind the same `business_charges` flow.
+- **Featured placement** (`featured_packages`, `featured_placements`): businesses buy a week or a
+  month on **Get featured** (`/business/promote`). `match_businesses` keeps every eligibility rule and
+  filter, so paying never makes a provider appear. Among providers that meet every requirement of a
+  search (area, date, budget, group size), up to `featured_slots` (3) featured ones are shown first,
+  best match first, with a "Featured" label and a note saying it's paid. Scores never change, and
+  sorting by rating or price ignores placement. The AI Concierge uses the same order.
+- **Customer booking fee** (setting `booking_fee`, off by default): a percentage plus a fixed amount,
+  with an optional cap. Customers see it on the booking form, the booking and checkout. It's stored on
+  the booking (`platform_fee_minor`), all of it goes to the platform, and commission is only taken on
+  the service price (`payments.booking_fee_minor`). Businesses only ever see their own price.
+
+Businesses' payments to the platform are `business_charges` (`CHG-…` references). The database sets
+the price from the catalogue and only lets the owner of an approved business pay. The payment is
+verified with the provider (callback or webhook) and then `complete_business_charge` records it and
+switches on the plan or placement in one step, once.
+
 ## Security
 
 - **Access:** every page and action checks the user on the server (`src/lib/auth/session.ts`, which

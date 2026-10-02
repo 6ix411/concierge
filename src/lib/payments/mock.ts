@@ -33,11 +33,11 @@ export function createMockProvider(appUrl: string, appEnv: string): PaymentProvi
     },
     async verify(reference) {
       assertNotProduction();
-      const { data, error } = await createAdminClient()
-        .from("payments")
-        .select("amount_minor")
-        .eq("reference", reference)
-        .maybeSingle();
+      const db = createAdminClient();
+      // Booking payments are PAY-…; businesses' payments for plans and placements are CHG-….
+      const { data, error } = reference.startsWith("CHG-")
+        ? await db.from("business_charges").select("amount_minor").eq("reference", reference).maybeSingle()
+        : await db.from("payments").select("amount_minor").eq("reference", reference).maybeSingle();
       if (error || !data) throw new AppError("NOT_FOUND", "Payment not found.");
       return {
         provider: "mock",

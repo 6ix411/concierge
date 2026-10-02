@@ -31,6 +31,7 @@ const base: Match = {
   fits_guests: true,
   score: 93,
   score_parts: {},
+  is_featured: false,
 };
 
 const request = parseServiceRequest(

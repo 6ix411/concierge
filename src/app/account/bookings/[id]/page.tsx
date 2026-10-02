@@ -154,6 +154,12 @@ export default async function BookingDetailPage({
           ) : (
             <p className="text-muted">Custom quote request</p>
           )}
+          {booking.platform_fee_minor > 0 && (
+            <div className="flex justify-between text-muted">
+              <span>Booking fee</span>
+              <span>{formatNaira(booking.platform_fee_minor)}</span>
+            </div>
+          )}
           <div className="mt-1 flex justify-between border-t border-border pt-2 font-semibold">
             <span>
               {booking.needs_quote && ["pending_provider", "quoted"].includes(booking.status)

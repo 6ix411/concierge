@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { logger } from "@/lib/errors";
 import { finalizePayment } from "@/lib/payments/checkout";
+import { finalizeCharge } from "@/lib/revenue/charges";
+import { CHARGE_REFERENCE } from "@/lib/revenue/rules";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +13,8 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   // Paystack uses ?reference=, Flutterwave uses ?tx_ref=.
   const reference = params.get("reference") ?? params.get("tx_ref") ?? params.get("trxref");
+  // A business paying for a plan or featured placement.
+  if (reference && CHARGE_REFERENCE.test(reference)) return chargeCallback(request, reference);
   if (!reference || !/^PAY-[A-F0-9]{16}$/.test(reference)) {
     return NextResponse.redirect(new URL("/account/bookings?payment=invalid", request.url));
   }
@@ -25,5 +29,20 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("Payment callback failed", { reference, error });
     return NextResponse.redirect(new URL("/account/bookings?payment=error", request.url));
+  }
+}
+
+async function chargeCallback(request: NextRequest, reference: string) {
+  const back = (kind: string, outcome: string) =>
+    NextResponse.redirect(
+      new URL(`/business/${kind === "featured" ? "promote" : "plan"}?payment=${outcome}`, request.url),
+    );
+  if (!(await checkRateLimit("payment.callback"))) return back("subscription", "error");
+  try {
+    const { kind, paid } = await finalizeCharge(reference);
+    return back(kind, paid ? "success" : "failed");
+  } catch (error) {
+    logger.error("Business payment callback failed", { reference, error });
+    return back("subscription", "error");
   }
 }
