@@ -242,6 +242,16 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Password reset links go to /auth/confirm with a token hash (see src/app/auth/confirm/route.ts).
+[auth.email.template.recovery]
+subject = "Reset your Concierge password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your Concierge password was changed"
+content_path = "./supabase/templates/password_changed.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

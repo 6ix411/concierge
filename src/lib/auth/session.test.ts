@@ -18,7 +18,7 @@ vi.mock("react", async (importOriginal) => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
-      getClaims: async () => ({ data: state.userId ? { claims: { sub: state.userId } } : null, error: null }),
+      getUser: async () => ({ data: { user: state.userId ? { id: state.userId } : null }, error: null }),
     },
     from: (table: string) => {
       const query = {

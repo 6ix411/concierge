@@ -103,8 +103,8 @@ export function fakeData(providers: Match[] = [snapshot, frames, lens]): DataSou
       if (filters.category && filters.category !== "photography-video") return [];
       return providers;
     },
-    async getProfile(slug) {
-      if (slug !== "snapshot-studios") return null;
+    async getDetails(providerId) {
+      if (providerId !== ids.snapshot) return null;
       return {
         description: "Event photography across Lagos.",
         min_notice_hours: 24,
@@ -117,24 +117,14 @@ export function fakeData(providers: Match[] = [snapshot, frames, lens]): DataSou
             pricing_type: "fixed",
             price_minor: 25_000_000,
             duration_minutes: 360,
-            is_package: false,
             is_addon: false,
             package_includes: [],
-            category_id: null,
           },
         ],
         areas: [{ state: "Lagos", city: "Lagos", area: "Victoria Island" }],
-        availability: [
-          {
-            day_of_week: 6,
-            specific_date: null,
-            start_time: "09:00:00",
-            end_time: "22:00:00",
-            is_available: true,
-          },
-        ],
+        weekly_hours: [{ day_of_week: 6, start_time: "09:00:00", end_time: "22:00:00" }],
         reviews: [],
-      } as unknown as Awaited<ReturnType<DataSource["getProfile"]>>;
+      };
     },
   };
 }

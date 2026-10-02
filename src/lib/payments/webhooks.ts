@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import type { PaymentProviderName } from "@/lib/env/schema";
 import { isAppError, logger } from "@/lib/errors";
+import { logSecurityEvent } from "@/lib/security/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 
@@ -25,7 +26,10 @@ export async function handleWebhook(
   headers: Headers,
 ): Promise<WebhookOutcome> {
   const valid = await provider.verifyWebhookSignature(rawBody, headers).catch(() => false);
-  if (!valid) return { status: 401, body: { received: false } };
+  if (!valid) {
+    await logSecurityEvent("webhook.bad_signature", { details: { provider: provider.name } });
+    return { status: 401, body: { received: false } };
+  }
 
   let event: WebhookEvent;
   let payload: NonNullable<Json>;

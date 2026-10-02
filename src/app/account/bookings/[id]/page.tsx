@@ -28,6 +28,7 @@ import {
 import { formatBookingLocation, itemKindLabels } from "@/lib/bookings/workflow";
 import { addDays, lagosToday, toLagosParts } from "@/lib/dates";
 import { formatDate, formatDateTime, formatNaira } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 
 export const metadata: Metadata = { title: "Booking" };
 
@@ -49,7 +50,7 @@ export default async function BookingDetailPage({
   searchParams,
 }: PageProps<"/account/bookings/[id]">) {
   const user = await requireAreaAccess("account");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const query = await searchParams;
   const booking = await getCustomerBooking(user.id, id);
   if (!booking) notFound();

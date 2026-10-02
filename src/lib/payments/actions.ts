@@ -1,10 +1,13 @@
 "use server";
 
+import { z } from "zod";
+
 import type { FormState } from "@/lib/auth/schemas";
 import { requireRole } from "@/lib/auth/session";
 import { canCustomerPay } from "@/lib/bookings/rules";
 import { moveBooking } from "@/lib/bookings/transitions";
 import { isAppError, logger } from "@/lib/errors";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 import { startPayment } from "./checkout";
@@ -18,11 +21,14 @@ export type CheckoutState = FormState & { redirectTo?: string };
 export async function startCheckoutAction(bookingId: string, _prev: CheckoutState): Promise<CheckoutState> {
   try {
     const customer = await requireRole("customer");
+    const id = z.guid().safeParse(bookingId);
+    if (!id.success) return { status: "error", message: "This booking isn't ready for payment." };
+    await enforceRateLimit("checkout.start", customer.id);
     const supabase = await createClient();
     const { data: booking } = await supabase
       .from("bookings")
       .select("id, status, scheduled_start, total_minor, business_id, commission_rate_bps")
-      .eq("id", bookingId)
+      .eq("id", id.data)
       .eq("customer_id", customer.id)
       .maybeSingle();
     if (!booking || !canCustomerPay(booking) || booking.total_minor <= 0) {

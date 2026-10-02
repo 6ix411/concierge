@@ -50,7 +50,14 @@ export function areaForPath(pathname: string): ProtectedArea | null {
 
 /** Only allow same-site relative redirects after sign-in (prevents open redirects). */
 export function safeRedirectPath(value: unknown, fallback = "/"): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\") ||
+    // Browsers drop tabs and line breaks, so "/\t/evil.com" would become "//evil.com".
+    /[\u0000-\u0020\u007f]/.test(value)
+  ) {
     return fallback;
   }
   return value;

@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/session";
 import { canReview } from "@/lib/bookings/rules";
 import { AppError, isAppError, logger } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,6 +25,7 @@ export async function submitReviewAction(_prev: FormState, formData: FormData): 
   let bookingId: string;
   try {
     const customer = await requireRole("customer");
+    await enforceRateLimit("review.submit", customer.id);
     const parsed = reviewSchema.safeParse({
       bookingId: formData.get("bookingId"),
       rating: formData.get("rating") ?? 0,

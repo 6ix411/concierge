@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/session";
 import { lagosDateTime } from "@/lib/dates";
 import { AppError, isAppError, logger } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,6 +42,7 @@ export async function createBookingAction(
   let bookingId: string;
   try {
     const customer = await requireRole("customer");
+    await enforceRateLimit("booking.create", customer.id);
 
     const serviceIds = formData.getAll("serviceIds").map(String);
     const packageId = String(formData.get("packageId") ?? "") || undefined;
@@ -271,6 +273,7 @@ export async function cancelBookingAction(_prev: FormState, formData: FormData):
 export async function rescheduleBookingAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     const customer = await requireRole("customer");
+    await enforceRateLimit("booking.change", customer.id);
     const parsed = rescheduleSchema.safeParse({
       bookingId: formData.get("bookingId"),
       date: formData.get("date"),

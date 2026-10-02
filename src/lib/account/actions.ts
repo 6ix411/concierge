@@ -3,9 +3,11 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 
-import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
+import { fieldErrorsFrom, newPasswordSchema, type FormState } from "@/lib/auth/schemas";
 import { requireUser } from "@/lib/auth/session";
 import { logger } from "@/lib/errors";
+import { logSecurityEvent } from "@/lib/security/events";
+import { checkRateLimit, RATE_LIMITED_MESSAGE } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const optional = (max: number) =>
@@ -66,12 +68,7 @@ export async function updateProfileAction(_prev: FormState, formData: FormData):
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password."),
-    newPassword: z
-      .string()
-      .min(8, "Use at least 8 characters.")
-      .max(72)
-      .regex(/[A-Za-z]/, "Include at least one letter.")
-      .regex(/[0-9]/, "Include at least one number."),
+    newPassword: newPasswordSchema,
   })
   .refine((value) => value.currentPassword !== value.newPassword, {
     path: ["newPassword"],
@@ -82,18 +79,28 @@ export async function changePasswordAction(_prev: FormState, formData: FormData)
   const user = await requireUser();
   const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error) };
+  // The current-password check must not become a way to guess passwords.
+  if (!(await checkRateLimit("auth.password_change", user.id)))
+    return { status: "error", message: RATE_LIMITED_MESSAGE };
 
   const supabase = await createClient();
   const { error: checkError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: parsed.data.currentPassword,
   });
-  if (checkError) return { status: "error", fieldErrors: { currentPassword: "That password isn't right." } };
+  if (checkError) {
+    await logSecurityEvent("auth.password_change_failed", { userId: user.id });
+    return { status: "error", fieldErrors: { currentPassword: "That password isn't right." } };
+  }
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.newPassword });
   if (error) {
     logger.warn("Password change failed", { code: error.code });
     return { status: "error", message: "We couldn't change your password. Please try again." };
   }
-  return { status: "success", message: "Password changed." };
+  // Anyone else signed in to this account (another device, or someone who knew the old password)
+  // is signed out.
+  await supabase.auth.signOut({ scope: "others" });
+  await logSecurityEvent("auth.password_changed", { userId: user.id });
+  return { status: "success", message: "Password changed. You've been signed out on other devices." };
 }

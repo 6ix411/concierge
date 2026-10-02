@@ -303,7 +303,10 @@ fails if any concierge file references the chat tables). The platform only provi
 - **Booking card** at the top: booking number and status, customer, business, service, date and
   place.
 - **Real-time text, photos, videos and files** (images, MP4/MOV/WebM, PDF, Word, Excel, text; up to
-  50 MB) in a private storage bucket only the two participants (and admins, when allowed) can read.
+  50 MB) in a private storage bucket only the two participants can read. Files are uploaded to the
+  chat's own folder, then a server action checks the contents (not the name or what the browser
+  says) and sends the message; anything else is deleted. Admins see files only through the
+  dashboard's signed links.
 - **Timestamps and read receipts** ("Sent" / "Seen", live) via `conversation_reads`.
 - **Notifications:** one "new message" notification per chat (never containing the text), cleared
   when the chat is read; inboxes show a "New" badge.
@@ -487,6 +490,26 @@ and date filled in. The customer always completes the booking and payment themse
   the page. Messages are rate limited per user or network address.
 - The concierge never takes part in customer–business chat.
 
+### What the AI can see
+
+The model never touches the database. Its tools call two fixed backend functions, both run as an
+anonymous visitor so row level security applies on top of their own rules:
+
+1. `match_businesses` (through `findMatches`): validated filters in, ranked eligible providers out.
+2. `concierge_provider_details(id)`: description, services and prices, areas, opening hours, booking
+   notice and the five latest public reviews of one eligible provider. It returns nothing for an
+   unapproved, suspended or unverified business, and never contacts, owners, documents or bookings.
+
+So for "Find photographers in Victoria Island under ₦300k", the tool arguments are checked by zod,
+the backend queries approved providers, and the model gets back structured rows to present.
+
+**Prompt injection:** text businesses and reviewers wrote is cleaned (control and invisible characters
+removed, length capped) and wrapped in «» marks the model is told to treat as data, never
+instructions. Customers' messages can't change the rules; unknown tools and bad arguments are
+refused; replies containing links, emails, phone numbers, "pay directly"-style requests or parts of
+the instructions are blocked and logged (`concierge.blocked_reply`). Visitors' history is capped to
+the last 20 turns.
+
 ## Search and matching engine
 
 Search, category pages, the homepage and the concierge all go through one database function,
@@ -550,6 +573,31 @@ and the statistics function can only be called by the server, never from a brows
   payouts plus any service fees. Each booking keeps the commission rate it was made at.
 - **Suspending a business owner** also takes their live business off the marketplace. Admins can't
   change their own account status.
+
+## Security
+
+- **Access:** every page and action checks the user on the server (`src/lib/auth/session.ts`, which
+  confirms the session with the auth server so "sign out everywhere" is immediate), and the database
+  enforces the same rules with row level security. Changing an id in a URL or API call returns
+  "Page not found" or nothing; malformed ids are a 404 (`pageId`).
+- **Rate limits** (`src/lib/security/rate-limit.ts`): sign-in (per address and per email), sign-up,
+  password reset and change, bookings, checkout, payment callbacks and webhooks, reviews, disputes,
+  chat files and reports, and the concierge. Counts live in the database (`hit_rate_limit`), so
+  every server shares them. Network addresses come from `x-forwarded-for`, which the host must set.
+- **Passwords:** "Forgot password?" sends a one-hour link (same answer whether or not the account
+  exists). The reset page only works with the short-lived signed cookie that link sets, and a reset
+  or password change signs out every other device.
+- **Uploads** (`src/lib/security/files.ts`): every file is judged by its first bytes after upload;
+  fakes, macro-enabled Office files and HTML/script disguised as text are deleted and logged.
+- **Payments:** webhooks need a valid signature and a size limit; amounts and currency are checked
+  against the booking before anything is marked paid.
+- **Browser:** a Content Security Policy with a fresh nonce per request (`src/proxy.ts`), no framing,
+  and no inline scripts without the nonce.
+- **Security log** (`security_events`, append-only, server-only): failed sign-ins, lock-outs, refused
+  files, bad webhooks, payment mismatches, blocked AI replies and role changes. Addresses are kept
+  only as a keyed hash. Admins read it under **Security** in the dashboard.
+- **Secrets** stay in server-only environment variables (`src/lib/env/server.ts`); only
+  `NEXT_PUBLIC_*` values reach the browser.
 
 ## Error handling
 

@@ -27,11 +27,15 @@ export type SessionUser = {
 /**
  * The signed-in user, verified server-side on every request.
  * The role comes from the database, never from anything the browser sends.
+ *
+ * The session is checked with the auth server rather than only by its signature, so signing out
+ * everywhere (after a password change or reset) takes effect at once instead of when the token
+ * expires.
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-  const userId = data?.claims.sub;
+  const { data, error } = await supabase.auth.getUser();
+  const userId = data?.user?.id;
   if (error || !userId) return null;
 
   const { data: row, error: rowError } = await supabase

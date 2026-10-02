@@ -13,6 +13,7 @@ import { moveBooking } from "@/lib/bookings/transitions";
 import { toFormError } from "@/lib/business/action-utils";
 import { AppError, logger } from "@/lib/errors";
 import { notify, type NewNotification } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,6 +43,7 @@ export async function openDisputeAction(_prev: FormState, formData: FormData): P
   let destination: string;
   try {
     const user = await requireRole("customer", "business");
+    await enforceRateLimit("dispute.open", user.id);
     const parsed = disputeOpenSchema.safeParse({
       bookingId: formData.get("bookingId"),
       reasonCode: formData.get("reasonCode"),
@@ -170,6 +172,7 @@ async function participantDispute(user: SessionUser, disputeId: string) {
 export async function postDisputeMessageAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     const user = await requireRole("customer", "business");
+    await enforceRateLimit("dispute.message", user.id);
     const parsed = disputeMessageSchema.safeParse({
       disputeId: formData.get("disputeId"),
       body: formData.get("body") ?? "",

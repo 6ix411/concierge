@@ -5,12 +5,13 @@ import { ConversationView } from "@/components/chat/conversation-view";
 import { requireOwnBusiness } from "@/lib/business/queries";
 import { getConversation, getCounterpartNames } from "@/lib/chat/queries";
 import { initials } from "@/lib/format";
+import { pageId } from "@/lib/security/ids";
 
 export const metadata: Metadata = { title: "Conversation" };
 
 export default async function BusinessConversationPage({ params }: PageProps<"/business/messages/[id]">) {
   const { user, business } = await requireOwnBusiness();
-  const { id } = await params;
+  const id = pageId((await params).id);
   const conversation = await getConversation(id);
   if (!conversation || conversation.business_id !== business.id) notFound();
   const customerName =

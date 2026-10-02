@@ -1,7 +1,10 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { AppError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database";
 
 import { meaningfulQuery, resolvePlace, type Place } from "./request";
 import type { Match, MatchSort } from "./types";
@@ -41,8 +44,11 @@ function placeArgs(location: MatchFilters["location"]) {
  * registered on Concierge that pass the platform's eligibility rules (approved, verified, accepting
  * bookings, active owner, at least one service). Nothing is ever looked up outside the platform.
  */
-export async function findMatches(filters: MatchFilters): Promise<Match[]> {
-  const supabase = await createClient();
+export async function findMatches(
+  filters: MatchFilters,
+  client?: SupabaseClient<Database>,
+): Promise<Match[]> {
+  const supabase = client ?? (await createClient());
   const { data, error } = await supabase.rpc("match_businesses", {
     p_query: meaningfulQuery(filters.query) ?? undefined,
     p_category: filters.category || undefined,

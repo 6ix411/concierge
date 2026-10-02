@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isInternalAdminPath, toInternalAdminPath } from "@/lib/auth/admin-path";
 import { areaForPath, canAccessArea, homePathForRole } from "@/lib/auth/permissions";
+import { contentSecurityPolicy, createNonce } from "@/lib/security/csp";
 import { updateSession } from "@/lib/supabase/proxy";
 
 /**
@@ -11,11 +12,23 @@ import { updateSession } from "@/lib/supabase/proxy";
  * database enforces row level security on top.
  */
 export async function proxy(request: NextRequest) {
-  const { response, userId, getActiveRole } = await updateSession(request);
+  const nonce = createNonce();
+  const csp = contentSecurityPolicy(
+    nonce,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NODE_ENV === "development",
+  );
+  // Next.js reads the policy from the request to put the nonce on its own scripts.
+  const { response, userId, getActiveRole } = await updateSession(request, {
+    "x-nonce": nonce,
+    "Content-Security-Policy": csp,
+  });
+  response.headers.set("Content-Security-Policy", csp);
   const { pathname, search } = request.nextUrl;
 
   const withSessionCookies = (next: NextResponse) => {
     for (const cookie of response.cookies.getAll()) next.cookies.set(cookie);
+    next.headers.set("Content-Security-Policy", csp);
     return next;
   };
   const redirectTo = (path: string, query = "") => {
@@ -46,7 +59,10 @@ export async function proxy(request: NextRequest) {
 
     const url = request.nextUrl.clone();
     url.pathname = internal;
-    const rewrite = withSessionCookies(NextResponse.rewrite(url, { request }));
+    const headers = new Headers(request.headers);
+    headers.set("x-nonce", nonce);
+    headers.set("Content-Security-Policy", csp);
+    const rewrite = withSessionCookies(NextResponse.rewrite(url, { request: { headers } }));
     rewrite.headers.set("X-Robots-Tag", "noindex, nofollow");
     rewrite.headers.set("Cache-Control", "private, no-store");
     return rewrite;

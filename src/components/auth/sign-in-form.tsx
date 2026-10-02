@@ -38,6 +38,9 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
         required
         error={state.fieldErrors?.password}
       />
+      <Link href="/forgot-password" className="-mt-2 self-end text-sm font-medium text-muted hover:underline">
+        Forgot password?
+      </Link>
       <Button type="submit" size="lg" loading={pending}>
         Sign in
       </Button>

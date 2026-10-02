@@ -8,7 +8,6 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
 import { formatNaira, formatPriceRange, formatTime, weekdayNames } from "@/lib/format";
-import type { BusinessProfile } from "@/lib/marketplace/queries";
 import type { MatchFilters } from "@/lib/matching/engine";
 import { resolvePlace } from "@/lib/matching/request";
 import type { Match } from "@/lib/matching/types";
@@ -16,20 +15,37 @@ import type { Match } from "@/lib/matching/types";
 import type { Facts } from "./facts";
 import type { Requirements } from "./types";
 
+/** One provider's structured details, as `concierge_provider_details` returns them. */
+export const providerDetailsSchema = z.object({
+  description: z.string().nullable(),
+  min_notice_hours: z.number().nullable(),
+  booking_window_days: z.number().nullable(),
+  services: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string().nullable(),
+      pricing_type: z.string(),
+      price_minor: z.number().nullable(),
+      duration_minutes: z.number().nullable(),
+      is_addon: z.boolean(),
+      package_includes: z.array(z.string()).nullable(),
+    }),
+  ),
+  areas: z.array(z.object({ area: z.string().nullable(), city: z.string().nullable(), state: z.string() })),
+  weekly_hours: z.array(z.object({ day_of_week: z.number(), start_time: z.string(), end_time: z.string() })),
+  reviews: z.array(z.object({ rating: z.number(), comment: z.string().nullable(), by: z.string() })),
+});
+export type ProviderDetails = z.infer<typeof providerDetailsSchema>;
+
+/**
+ * Everything the concierge can read. Both functions return structured data about eligible
+ * businesses only (see `concierge_provider_details` and `match_businesses`); the model never
+ * writes a query.
+ */
 export type DataSource = {
   findMatches(filters: MatchFilters): Promise<Match[]>;
-  getProfile(
-    slug: string,
-  ): Promise<Pick<
-    BusinessProfile,
-    | "services"
-    | "areas"
-    | "availability"
-    | "reviews"
-    | "min_notice_hours"
-    | "booking_window_days"
-    | "description"
-  > | null>;
+  getDetails(providerId: string): Promise<ProviderDetails | null>;
   categories: { slug: string; label: string }[];
   /** Today in Lagos, YYYY-MM-DD. */
   today: string;
@@ -201,6 +217,21 @@ export function toolDefinitions(categories: DataSource["categories"]): Anthropic
 
 export type ToolOutput = { content: unknown; isError?: boolean };
 
+/**
+ * Text written by businesses or customers (descriptions, reviews) reaches the model as quoted data:
+ * shortened, on one line, without control or invisible characters, and labelled so it can't pass
+ * for instructions (the system prompt says to treat it as information only).
+ */
+export function untrusted(text: string | null | undefined, max: number): string | null {
+  if (!text) return null;
+  const clean = text
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+  return clean ? `«${clean.replace(/[«»]/g, '"')}»` : null;
+}
+
 const errorOutput = (message: string): ToolOutput => ({ content: { error: message }, isError: true });
 
 function describePrice(match: Match) {
@@ -302,7 +333,7 @@ async function providerDetails(raw: unknown, { data, facts }: ToolContext): Prom
 
   const [match] = await data.findMatches({ ids: [provider_id], date: date ?? null, limit: 1 });
   if (!match) return errorOutput("This provider isn't available on Concierge. Don't recommend it.");
-  const profile = await data.getProfile(match.slug);
+  const profile = await data.getDetails(match.id);
   if (!profile) return errorOutput("This provider isn't available on Concierge. Don't recommend it.");
 
   facts.addMatch(match, date ?? null);
@@ -319,29 +350,25 @@ async function providerDetails(raw: unknown, { data, facts }: ToolContext): Prom
   const reviews = profile.reviews.slice(0, 5);
   for (const review of reviews) fact.reviewRatings.add(review.rating);
 
-  const hours = profile.availability
-    .filter((rule) => rule.specific_date === null && rule.is_available && rule.day_of_week !== null)
-    .sort((a, b) => ((a.day_of_week! + 6) % 7) - ((b.day_of_week! + 6) % 7))
-    .map(
-      (rule) =>
-        `${weekdayNames[rule.day_of_week!]} ${formatTime(rule.start_time!)}–${formatTime(rule.end_time!)}`,
-    );
+  const hours = profile.weekly_hours.map(
+    (rule) => `${weekdayNames[rule.day_of_week]} ${formatTime(rule.start_time)}–${formatTime(rule.end_time)}`,
+  );
 
   return {
     content: {
       ...summarise(match),
-      description: profile.description?.slice(0, 600) ?? null,
+      description: untrusted(profile.description, 600),
       services: profile.services.map((service) => ({
         service_id: service.id,
         name: service.name,
-        description: service.description?.slice(0, 300) ?? null,
+        description: untrusted(service.description, 300),
         price:
           service.pricing_type === "quote_only" || service.price_minor === null
             ? "price on request"
             : `${service.pricing_type === "starting_from" ? "from " : ""}${formatNaira(service.price_minor)}${service.pricing_type === "hourly" ? " per hour" : ""}`,
         duration_minutes: service.duration_minutes,
         add_on: service.is_addon,
-        package_includes: service.package_includes,
+        package_includes: (service.package_includes ?? []).map((item) => untrusted(item, 120)),
       })),
       service_areas: profile.areas.map((area) =>
         [area.area, area.city, area.state].filter(Boolean).join(", "),
@@ -351,8 +378,8 @@ async function providerDetails(raw: unknown, { data, facts }: ToolContext): Prom
       books_up_to_days_ahead: profile.booking_window_days,
       recent_reviews: reviews.map((review) => ({
         rating: review.rating,
-        comment: review.comment?.slice(0, 300) ?? null,
-        by: review.reviewer_name,
+        comment: untrusted(review.comment, 300),
+        by: review.by,
       })),
     },
   };

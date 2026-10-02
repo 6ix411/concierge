@@ -4,16 +4,18 @@ import { getAnthropic, getConciergeModel, isAiConfigured } from "@/lib/ai/anthro
 import { lagosToday } from "@/lib/dates";
 import { logger } from "@/lib/errors";
 import { formatNaira, formatTime } from "@/lib/format";
-import { getBusinessBySlug, getCategories } from "@/lib/marketplace/queries";
+import { getCategories } from "@/lib/marketplace/queries";
 import { findMatches } from "@/lib/matching/engine";
 import { explainMatch, formatRequestDate } from "@/lib/matching/explain";
 import { resolvePlace } from "@/lib/matching/request";
+import { logSecurityEvent } from "@/lib/security/events";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createPublicClient } from "@/lib/supabase/public";
 
 import { runAgent } from "./agent";
 import { Facts } from "./facts";
 import { runRules } from "./rules";
-import type { DataSource } from "./tools";
+import { providerDetailsSchema, type DataSource } from "./tools";
 import type {
   BookingLink,
   ChatTurn,
@@ -23,11 +25,21 @@ import type {
   Requirements,
 } from "./types";
 
+/**
+ * The concierge's only access to data: a visitor-level client (no session, whoever is signed in)
+ * calling two read-only functions that return structured details of eligible providers.
+ */
 async function dataSource(): Promise<DataSource> {
   const categories = await getCategories();
+  const db = createPublicClient();
   return {
-    findMatches,
-    getProfile: (slug) => getBusinessBySlug(slug),
+    findMatches: (filters) => findMatches(filters, db),
+    async getDetails(providerId) {
+      const { data, error } = await db.rpc("concierge_provider_details", { p_business_id: providerId });
+      if (error) throw error;
+      if (!data) return null;
+      return providerDetailsSchema.parse(data);
+    },
     categories: categories.flatMap((parent) => [
       { slug: parent.slug, label: parent.name },
       ...parent.children.map((child) => ({ slug: child.slug, label: child.name })),
@@ -38,7 +50,10 @@ async function dataSource(): Promise<DataSource> {
 
 let namesCache: { names: string[]; at: number } | null = null;
 
-/** Every business name on the platform (approved or not), so replies can't mention one unchecked. */
+/**
+ * Every business name on the platform (approved or not), so replies can't mention one unchecked.
+ * Used by the guard only; never sent to the model.
+ */
 async function knownBusinessNames(): Promise<string[]> {
   if (namesCache && Date.now() - namesCache.at < 60_000) return namesCache.names;
   const { data, error } = await createAdminClient().from("businesses").select("name");
@@ -119,7 +134,7 @@ export async function answer(
 
   if (isAiConfigured()) {
     try {
-      result = await runAgent({
+      const run = await runAgent({
         client: getAnthropic(),
         model: getConciergeModel(),
         data,
@@ -127,6 +142,10 @@ export async function answer(
         message,
         knownBusinessNames: await knownBusinessNames(),
       });
+      // The model's reply failed the guard every time; the customer got a reply built from the
+      // database instead. Recorded so repeated attempts to steer the AI show up in the log.
+      if (!run.verified) await logSecurityEvent("concierge.blocked_reply");
+      result = run;
       source = "ai";
     } catch (error) {
       logger.warn("AI concierge unavailable; using built-in rules", { error });

@@ -37,7 +37,16 @@ describe("safeRedirectPath", () => {
   it("allows relative paths", () => {
     expect(safeRedirectPath("/business?tab=1")).toBe("/business?tab=1");
   });
-  it.each(["https://evil.com", "//evil.com", "/\\evil.com", "evil", undefined])("rejects %s", (value) => {
+  it.each([
+    "https://evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "evil",
+    undefined,
+    "/\t/evil.com",
+    "/\n/evil.com",
+    "/ /evil.com",
+  ])("rejects %s", (value) => {
     expect(safeRedirectPath(value, "/home")).toBe("/home");
   });
 });
