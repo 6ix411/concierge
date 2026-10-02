@@ -4,10 +4,11 @@ import { refresh } from "next/cache";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { recordPayout } from "@/lib/bookings/payouts";
-import type { BookingStatus } from "@/lib/bookings/rules";
+import { bookingFeeFor, type BookingStatus } from "@/lib/bookings/rules";
 import { moveBooking } from "@/lib/bookings/transitions";
 import { AppError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { getBookingFeeRule } from "@/lib/revenue/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -138,6 +139,8 @@ export async function sendQuoteAction(_prev: FormState, formData: FormData): Pro
     const admin = createAdminClient();
     const { data: items } = await admin.from("booking_items").select("name").eq("booking_id", booking.id);
     const label = (items ?? []).map((item) => item.name).join(", ");
+    // The customer's booking fee (if an admin has set one) is added on top of the quoted price.
+    const fee = bookingFeeFor(parsed.data.amount, await getBookingFeeRule());
 
     await moveBooking({
       bookingId: booking.id,
@@ -148,8 +151,8 @@ export async function sendQuoteAction(_prev: FormState, formData: FormData): Pro
       changes: {
         quote_notes: parsed.data.notes ?? null,
         subtotal_minor: parsed.data.amount,
-        platform_fee_minor: 0,
-        total_minor: parsed.data.amount,
+        platform_fee_minor: fee,
+        total_minor: parsed.data.amount + fee,
       },
       scope: { businessId: business.id },
     });

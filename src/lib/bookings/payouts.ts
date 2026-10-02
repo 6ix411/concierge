@@ -5,7 +5,8 @@ import { AppError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Records what the business is owed for a completed booking: the total minus the platform's commission.
+ * Records what the business is owed for a completed booking: the service price minus the platform's
+ * commission. The customer's booking fee belongs to the platform and is not part of the payout.
  * Safe to call twice: a booking only ever has one payout. An admin sends it to the business's bank account (src/lib/payments/payouts.ts).
  */
 export async function recordPayout(booking: {
@@ -27,13 +28,15 @@ export async function recordPayout(booking: {
   // The split recorded on the customer's payment decides the payout; older bookings fall back to the booking's rate.
   const { data: payment } = await db
     .from("payments")
-    .select("id, amount_minor, platform_fee_minor, provider_amount_minor")
+    .select("id, amount_minor, platform_fee_minor, provider_amount_minor, booking_fee_minor")
     .eq("booking_id", booking.id)
     .eq("status", "success")
     .maybeSingle();
-  const gross = payment?.amount_minor ?? booking.total_minor;
-  const commission =
-    payment?.platform_fee_minor ?? commissionFor(booking.total_minor, booking.commission_rate_bps);
+  const fee = payment?.booking_fee_minor ?? 0;
+  const gross = payment ? payment.amount_minor - fee : booking.total_minor;
+  const commission = payment
+    ? payment.platform_fee_minor - fee
+    : commissionFor(booking.total_minor, booking.commission_rate_bps);
   const { error } = await db.from("payouts").insert({
     business_id: booking.business_id,
     booking_id: booking.id,

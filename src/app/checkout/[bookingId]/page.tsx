@@ -56,7 +56,7 @@ export default async function CheckoutPage({ params }: PageProps<"/checkout/[boo
             <span>{formatNaira(booking.subtotal_minor)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">Service fee</span>
+            <span className="text-muted">Booking fee</span>
             <span>{booking.platform_fee_minor > 0 ? formatNaira(booking.platform_fee_minor) : "Free"}</span>
           </div>
           <div className="flex justify-between pt-1 text-base font-semibold">

@@ -10,6 +10,7 @@ export const notificationCategories = {
   payout: "Payouts",
   account: "Account",
   chat: "Chat reports",
+  billing: "Plan and featured",
 } as const;
 
 export type NotificationCategory = keyof typeof notificationCategories;

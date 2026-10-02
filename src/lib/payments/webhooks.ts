@@ -8,6 +8,8 @@ import { logSecurityEvent } from "@/lib/security/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 
+import { finalizeCharge } from "@/lib/revenue/charges";
+
 import { finalizePayment } from "./checkout";
 import { refreshPayoutByReference } from "./payouts";
 import { completeRefund } from "./refunds";
@@ -99,7 +101,9 @@ async function applyWebhookEvent(
   try {
     switch (event.kind) {
       case "charge": {
-        const { paid } = await finalizePayment(event.reference, "webhook", provider);
+        const { paid } = event.reference.startsWith("CHG-")
+          ? await finalizeCharge(event.reference, "webhook", provider)
+          : await finalizePayment(event.reference, "webhook", provider);
         return paid ? undefined : "not paid";
       }
       case "transfer":

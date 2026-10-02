@@ -2,7 +2,7 @@ import { CalendarCheck, MapPin } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Card, LinkButton } from "@/components/ui";
+import { Badge, Card, LinkButton } from "@/components/ui";
 import { formatPriceRange } from "@/lib/format";
 import type { SearchResult } from "@/lib/marketplace/queries";
 
@@ -44,6 +44,14 @@ export function BusinessCard({
               {business.name}
             </Link>
             {business.is_verified && <VerifiedBadge />}
+            {business.is_featured && (
+              <Badge
+                tone="accent"
+                title="Paid placement. Shown first because it also meets everything you asked for."
+              >
+                Featured
+              </Badge>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <Rating value={Number(business.rating_avg)} count={business.rating_count} />

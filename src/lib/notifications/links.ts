@@ -46,6 +46,8 @@ export function notificationTarget(
     return page("/account/reviews");
   }
   if (category === "payout") return page("/business/earnings");
+  if (category === "billing")
+    return page(event?.startsWith("featured") ? "/business/promote" : "/business/plan");
   if (category === "verification") return page("/business/verification");
   if (category === "business") return page("/business");
   if (bookingId) return page(`${area}/bookings/${bookingId}`);

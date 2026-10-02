@@ -139,14 +139,27 @@ export type BookingQuote = {
   needsQuote: boolean;
 };
 
+/** The optional customer booking fee an admin sets: a percentage plus a flat amount, capped. */
+export type BookingFeeRule = { percentBps: number; flatMinor: number; capMinor: number | null };
+
+export const NO_BOOKING_FEE: BookingFeeRule = { percentBps: 0, flatMinor: 0, capMinor: null };
+
+/** The fee on a service price. Nothing is charged on a booking with no price yet. */
+export function bookingFeeFor(subtotalMinor: number, rule: BookingFeeRule): number {
+  if (subtotalMinor <= 0) return 0;
+  const fee = Math.round((subtotalMinor * rule.percentBps) / 10_000) + rule.flatMinor;
+  return Math.max(0, rule.capMinor === null ? fee : Math.min(fee, rule.capMinor));
+}
+
 /**
  * Prices a booking on the server from the business's current service prices.
- * The browser never sends prices. The platform takes its commission from the business
- * side, so customers pay the listed price with no added fee.
+ * The browser never sends prices. The platform takes its commission from the business side;
+ * customers pay the listed price plus the booking fee, if an admin has set one.
  */
 export function priceBooking(
   services: PricedService[],
   selection: { serviceId: string; quantity: number }[],
+  feeRule: BookingFeeRule = NO_BOOKING_FEE,
 ): BookingQuote {
   const byId = new Map(services.map((service) => [service.id, service]));
   const items: LineItem[] = [];
@@ -166,7 +179,8 @@ export function priceBooking(
   }
 
   const subtotalMinor = items.reduce((sum, item) => sum + item.unitPriceMinor * item.quantity, 0);
-  return { items, subtotalMinor, platformFeeMinor: 0, totalMinor: subtotalMinor, needsQuote };
+  const platformFeeMinor = bookingFeeFor(subtotalMinor, feeRule);
+  return { items, subtotalMinor, platformFeeMinor, totalMinor: subtotalMinor + platformFeeMinor, needsQuote };
 }
 
 export type AvailabilityRule = {

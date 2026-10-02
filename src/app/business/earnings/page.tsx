@@ -42,7 +42,7 @@ export default async function BusinessEarningsPage() {
   const [bookings, payouts, account] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, reference, status, total_minor, commission_rate_bps, completed_at, scheduled_start")
+      .select("id, reference, status, subtotal_minor, commission_rate_bps, completed_at, scheduled_start")
       .eq("business_id", business.id)
       .in("status", paidStatuses)
       .order("scheduled_start", { ascending: false }),
@@ -158,7 +158,7 @@ export default async function BusinessEarningsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {(bookings.data ?? []).map((booking) => {
-                  const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
+                  const commission = commissionFor(booking.subtotal_minor, booking.commission_rate_bps);
                   return (
                     <tr key={booking.id}>
                       <td className="p-3">
@@ -172,10 +172,10 @@ export default async function BusinessEarningsPage() {
                           {booking.status === "completed" ? "Completed" : "Not completed yet"}
                         </span>
                       </td>
-                      <td className="p-3 text-right tabular-nums">{formatNaira(booking.total_minor)}</td>
+                      <td className="p-3 text-right tabular-nums">{formatNaira(booking.subtotal_minor)}</td>
                       <td className="p-3 text-right text-muted tabular-nums">− {formatNaira(commission)}</td>
                       <td className="p-3 text-right font-medium tabular-nums">
-                        {formatNaira(booking.total_minor - commission)}
+                        {formatNaira(booking.subtotal_minor - commission)}
                       </td>
                     </tr>
                   );

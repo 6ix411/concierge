@@ -36,7 +36,7 @@ export function BusinessBookingList({ bookings }: { bookings: BusinessBookingLis
               </p>
               <p className="text-sm text-muted">
                 {booking.scheduled_start ? formatDateTime(booking.scheduled_start) : "Date to be agreed"}
-                {booking.total_minor > 0 && ` · ${formatNaira(booking.total_minor)}`}
+                {booking.subtotal_minor > 0 && ` · ${formatNaira(booking.subtotal_minor)}`}
               </p>
             </div>
             <ChevronRight aria-hidden className="size-4 shrink-0 text-muted" />

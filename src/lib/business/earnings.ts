@@ -12,7 +12,7 @@ export { paidStatuses };
 
 export type EarningsBooking = {
   status: BookingStatus;
-  total_minor: number;
+  subtotal_minor: number;
   commission_rate_bps: number;
   completed_at: string | null;
 };
@@ -47,10 +47,10 @@ export function summarizeEarnings(bookings: EarningsBooking[], payouts: Earnings
   };
   for (const booking of bookings) {
     if (!paidStatuses.includes(booking.status)) continue;
-    const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
-    const net = booking.total_minor - commission;
+    const commission = commissionFor(booking.subtotal_minor, booking.commission_rate_bps);
+    const net = booking.subtotal_minor - commission;
     summary.paidBookingCount += 1;
-    summary.grossMinor += booking.total_minor;
+    summary.grossMinor += booking.subtotal_minor;
     summary.commissionMinor += commission;
     summary.netMinor += net;
     if (doneStatuses.includes(booking.status)) summary.earnedMinor += net;
@@ -81,7 +81,7 @@ export function monthlyEarnings(
     if (!doneStatuses.includes(booking.status) || !booking.completed_at) continue;
     const key = lagos(new Date(booking.completed_at)).toISOString().slice(0, 7);
     if (!totals.has(key)) continue;
-    const net = booking.total_minor - commissionFor(booking.total_minor, booking.commission_rate_bps);
+    const net = booking.subtotal_minor - commissionFor(booking.subtotal_minor, booking.commission_rate_bps);
     totals.set(key, (totals.get(key) ?? 0) + net);
   }
   return keys.map((month) => ({ month, netMinor: totals.get(month) ?? 0 }));

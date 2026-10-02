@@ -27,7 +27,7 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
   if (!booking) notFound();
 
   const actions = businessBookingActions(booking.status, booking.needs_quote);
-  const commission = commissionFor(booking.total_minor, booking.commission_rate_bps);
+  const commission = commissionFor(booking.subtotal_minor, booking.commission_rate_bps);
   const isPaid = paidStatuses.includes(booking.status);
   const conversationId = booking.conversations?.id ?? null;
   const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
@@ -102,10 +102,10 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
         )}
         {booking.quote_notes && <p className="text-muted">Your quote: {booking.quote_notes}</p>}
         <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
-          <span>Customer pays</span>
-          <span>{booking.total_minor > 0 ? formatNaira(booking.total_minor) : "To be quoted"}</span>
+          <span>Your price</span>
+          <span>{booking.subtotal_minor > 0 ? formatNaira(booking.subtotal_minor) : "To be quoted"}</span>
         </div>
-        {booking.total_minor > 0 && (
+        {booking.subtotal_minor > 0 && (
           <>
             <div className="flex justify-between text-muted">
               <span>Platform commission ({booking.commission_rate_bps / 100}%)</span>
@@ -113,7 +113,7 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
             </div>
             <div className="flex justify-between font-semibold">
               <span>You receive</span>
-              <span>{formatNaira(booking.total_minor - commission)}</span>
+              <span>{formatNaira(booking.subtotal_minor - commission)}</span>
             </div>
           </>
         )}

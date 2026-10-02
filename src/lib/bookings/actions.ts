@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/session";
 import { lagosDateTime } from "@/lib/dates";
 import { AppError, isAppError, logger } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { getBookingFeeRule } from "@/lib/revenue/queries";
 import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -138,7 +139,7 @@ export async function createBookingAction(
       }
     }
 
-    const quote = priceBooking(services ?? [], selection.lines);
+    const quote = priceBooking(services ?? [], selection.lines, await getBookingFeeRule());
     const isQuote = input.mode === "quote" || quote.needsQuote;
     const duration =
       selection.lines.reduce((sum, line) => {

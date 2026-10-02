@@ -38,6 +38,7 @@ export function match(overrides: Partial<Match> & Pick<Match, "id" | "name">): M
     within_budget: null,
     guest_capacity: null,
     fits_guests: null,
+    is_featured: false,
     score: 50,
     score_parts: {},
     ...overrides,

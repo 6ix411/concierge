@@ -26,7 +26,7 @@ export async function listBusinessBookings(businessId: string, tab: BookingTab, 
   let query = supabase
     .from("bookings")
     .select(
-      "id, reference, status, needs_quote, scheduled_start, total_minor, customer_id, created_at, booking_items(name)",
+      "id, reference, status, needs_quote, scheduled_start, subtotal_minor, customer_id, created_at, booking_items(name)",
     )
     .eq("business_id", businessId)
     .in("status", statuses)

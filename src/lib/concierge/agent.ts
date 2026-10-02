@@ -6,7 +6,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 
-import { formatRequestDate } from "@/lib/matching/explain";
+import { compareMatches, formatRequestDate } from "@/lib/matching/explain";
 
 import { composeResults } from "./compose";
 import { Facts } from "./facts";
@@ -106,7 +106,7 @@ function safeDraft(facts: Facts): ReplyDraft {
       suggestions: [],
     };
   }
-  const matches = [...facts.matches.values()].sort((a, b) => b.score - a.score);
+  const matches = [...facts.matches.values()].sort(compareMatches);
   return composeResults(matches, last.requirements);
 }
 

@@ -16,6 +16,7 @@ const links = [
   { path: "/reviews", label: "Reviews" },
   { path: "/users", label: "Users" },
   { path: "/categories", label: "Categories" },
+  { path: "/revenue", label: "Revenue" },
   { path: "/commission", label: "Commission" },
   { path: "/audit", label: "Audit log" },
   { path: "/security", label: "Security" },

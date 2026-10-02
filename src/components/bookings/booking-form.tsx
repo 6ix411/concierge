@@ -6,6 +6,7 @@ import { FormMessage } from "@/components/auth/form-message";
 import { priceLabel } from "@/components/marketplace/service-list";
 import { Button, Input } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
+import { bookingFeeFor, NO_BOOKING_FEE, type BookingFeeRule } from "@/lib/bookings/rules";
 import { formatNaira } from "@/lib/format";
 import type { BusinessService } from "@/lib/marketplace/queries";
 import { cn } from "@/lib/utils/cn";
@@ -99,6 +100,7 @@ export function BookingForm({
   maxDate,
   defaults,
   serviceAreas,
+  bookingFee = NO_BOOKING_FEE,
 }: {
   action: Action;
   services: BusinessService[];
@@ -109,6 +111,8 @@ export function BookingForm({
   defaults: { addressLine?: string; area?: string; city?: string; state?: string; date?: string };
   /** Where the business works, e.g. "Lekki, Lagos". */
   serviceAreas: string[];
+  /** Shown so the customer sees the full price; the server works out the real amount. */
+  bookingFee?: BookingFeeRule;
 }) {
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const mainServices = services.filter((service) => !service.is_addon && !service.is_package);
@@ -136,7 +140,9 @@ export function BookingForm({
   const quantityOf = (id: string) => (id === packageId ? 1 : (selected[id] ?? 1));
   const needsQuote =
     mode === "quote" || chosen.some((s) => s.pricing_type !== "fixed" && s.pricing_type !== "hourly");
-  const estimate = chosen.reduce((sum, s) => sum + (s.price_minor ?? 0) * quantityOf(s.id), 0);
+  const servicesTotal = chosen.reduce((sum, s) => sum + (s.price_minor ?? 0) * quantityOf(s.id), 0);
+  const fee = bookingFeeFor(servicesTotal, bookingFee);
+  const estimate = servicesTotal + fee;
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -420,6 +426,12 @@ export function BookingForm({
               </li>
             ))}
           </ul>
+        )}
+        {fee > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted">
+            <span>Booking fee</span>
+            <span>{formatNaira(fee)}</span>
+          </div>
         )}
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted">{needsQuote ? "Estimate" : "Total"}</span>
