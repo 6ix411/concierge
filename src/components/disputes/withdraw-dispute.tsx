@@ -1,15 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 import { withdrawDisputeAction } from "@/lib/disputes/actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** Lets whoever opened a dispute take it back, after confirming. */
 export function WithdrawDispute({ disputeId }: { disputeId: string }) {
-  const [state, action, pending] = useActionState(withdrawDisputeAction.bind(null, disputeId), {
+  const [state, action, pending] = useFormAction(withdrawDisputeAction.bind(null, disputeId), {
     status: "idle",
   } as FormState);
   const [confirming, setConfirming] = useState(false);

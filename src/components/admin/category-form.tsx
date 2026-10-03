@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input, Select } from "@/components/ui";
 import { deleteCategoryAction, saveCategoryAction } from "@/lib/admin/category-actions";
 import type { FormState } from "@/lib/auth/schemas";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 export type CategoryDefaults = {
   id: string;
@@ -30,7 +31,7 @@ export function CategoryForm({
   /** Called after a successful save, with the confirmation to show. */
   onSaved?: (message: string) => void;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useFormAction(
     async (prev: FormState, formData: FormData) => {
       const result = await saveCategoryAction(prev, formData);
       if (result.status === "success" && onSaved) onSaved(result.message ?? "Saved.");
@@ -137,7 +138,7 @@ export function CategoryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
-  const [deleteState, deleteAction, deleting] = useActionState(deleteCategoryAction, { status: "idle" });
+  const [deleteState, deleteAction, deleting] = useFormAction(deleteCategoryAction, { status: "idle" });
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">

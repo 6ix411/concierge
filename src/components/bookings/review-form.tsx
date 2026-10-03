@@ -1,7 +1,7 @@
 "use client";
 
 import { ImagePlus, Star, X } from "lucide-react";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
@@ -14,11 +14,12 @@ import {
   reviewPhotosProblem,
 } from "@/lib/reviews/rules";
 import { cn } from "@/lib/utils/cn";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const labels = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
 
 export function ReviewForm({ bookingId }: { bookingId: string }) {
-  const [state, action, pending] = useActionState(submitReviewAction, { status: "idle" } as FormState);
+  const [state, action, pending] = useFormAction(submitReviewAction, { status: "idle" } as FormState);
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const shown = hover || rating;

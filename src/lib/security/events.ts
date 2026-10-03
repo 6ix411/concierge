@@ -17,6 +17,7 @@ export const securityEventLabels = {
   "upload.rejected": "File refused (not what it claimed to be)",
   "webhook.bad_signature": "Payment webhook with a bad signature",
   "payment.mismatch": "Payment amount or currency didn't match",
+  "payment.duplicate": "Second payment for a paid booking (refunded)",
   "concierge.blocked_reply": "AI reply blocked by the guard",
   "role.changed": "Account role changed",
 } as const;

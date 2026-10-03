@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, type ButtonProps } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -28,7 +29,7 @@ export function AdminActionForm({
   variant?: ButtonProps["variant"];
   reason?: { label: string; required?: boolean; placeholder?: string; name?: string };
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   const [open, setOpen] = useState(false);
   const reasonName = reason?.name ?? "reason";
   const id = `${label}-${Object.values(fields).join("-")}`.replace(/\W+/g, "-");

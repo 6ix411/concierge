@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -22,7 +23,7 @@ function SettingsForm({
   label: string;
   saveLabel?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   return (
     <form action={formAction} aria-label={label} className="flex flex-col gap-3">
       {state.message && (

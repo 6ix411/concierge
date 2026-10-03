@@ -1,13 +1,14 @@
 "use client";
 
 import { Ban, Flag } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import { blockAction, unblockAction } from "@/lib/chat/actions";
 
 import { ReportForm } from "./report-form";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** Report the other person, or block / unblock them. */
 export function ChatSafety({
@@ -20,10 +21,10 @@ export function ChatSafety({
   blockedByMe: boolean;
 }) {
   const [panel, setPanel] = useState<"report" | "block" | null>(null);
-  const [blockState, block, blocking] = useActionState(blockAction.bind(null, conversationId), {
+  const [blockState, block, blocking] = useFormAction(blockAction.bind(null, conversationId), {
     status: "idle",
   });
-  const [unblockState, unblock, unblocking] = useActionState(unblockAction.bind(null, conversationId), {
+  const [unblockState, unblock, unblocking] = useFormAction(unblockAction.bind(null, conversationId), {
     status: "idle",
   });
   const message = blockedByMe ? blockState.message : unblockState.message;

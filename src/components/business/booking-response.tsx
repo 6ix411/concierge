@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 import { sendQuoteAction, updateBookingStatusAction } from "@/lib/business/booking-actions";
 import type { BusinessBookingAction } from "@/lib/business/booking-rules";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type StatusAction = Exclude<BusinessBookingAction, "quote">;
 
@@ -26,7 +27,7 @@ function StatusButton({
   label: string;
   variant?: "primary" | "outline";
 }) {
-  const [state, formAction, pending] = useActionState(updateBookingStatusAction.bind(null, action), {
+  const [state, formAction, pending] = useFormAction(updateBookingStatusAction.bind(null, action), {
     status: "idle",
   });
   return (
@@ -53,7 +54,7 @@ function ReasonForm({
   prompt: string;
   onCancel: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(updateBookingStatusAction.bind(null, action), {
+  const [state, formAction, pending] = useFormAction(updateBookingStatusAction.bind(null, action), {
     status: "idle",
   });
   return (
@@ -87,7 +88,7 @@ function ReasonForm({
 }
 
 function QuoteForm({ bookingId }: { bookingId: string }) {
-  const [state, formAction, pending] = useActionState(sendQuoteAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(sendQuoteAction, { status: "idle" });
   return (
     <form
       action={formAction}

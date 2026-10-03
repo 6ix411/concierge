@@ -14,7 +14,7 @@ human-to-human chat; the AI never takes part in that conversation.
 | Data & auth  | Supabase: Postgres, Auth, Storage, Realtime                |
 | AI Concierge | Anthropic API (server-only)                                |
 | Payments     | Paystack (default), Flutterwave behind the same interface  |
-| Tests        | Vitest + Testing Library                                   |
+| Tests        | Vitest + Testing Library, pgTAP, Playwright                |
 | Hosting      | Vercel                                                     |
 
 ## Getting started
@@ -37,6 +37,8 @@ npm run dev                  # http://localhost:3000
 | `npm run build`    | Production build                                           |
 | `npm run check`    | Typecheck, lint, format check and tests                    |
 | `npm test`         | Unit and component tests                                   |
+| `npm run db:test`  | Database tests (pgTAP) against the local Supabase          |
+| `npm run test:e2e` | Browser suites against a production build (see Testing)    |
 | `npm run db:types` | Regenerate `src/types/database.ts` from the local database |
 
 ## Environments
@@ -641,7 +643,7 @@ Customers should be able to go from discovery to review on a phone. On screens u
 - The compare table fits two providers side by side under fixed row labels; more scroll sideways.
 - Form fields are at least 16px so iOS doesn't zoom when one is focused.
 
-The browser suite `e2e-mobile19` walks the whole journey on an iPhone-sized screen by tapping:
+The browser suite `e2e/suites/mobile.mjs` walks the whole journey on an iPhone-sized screen by tapping:
 concierge match, compare, book, business accepts, pay, chat both ways, complete, review, and checks
 every page fits a 320px screen.
 
@@ -676,3 +678,57 @@ every page fits a 320px screen.
 - Wrap route handlers in `withErrorHandling` so every error becomes `{ error: { code, message } }` with the right status.
 - Unexpected errors are logged server-side and returned as a generic 500 without internal details.
 - `error.tsx` and `global-error.tsx` catch rendering errors in the UI.
+
+## Testing
+
+Three layers, all run in CI on every pull request:
+
+- **Unit and component tests** (`npm test`, Vitest): rules, schemas, prompts and components.
+- **Database tests** (`npm run db:test`, pgTAP in `supabase/tests`): row level security, server-only
+  functions, booking and payment state machines, and duplicate protection, run as each role.
+- **Browser suites** (`npm run test:e2e`, Playwright in `e2e/suites`): real journeys against a
+  production build. Each suite gets a freshly reset database and server, and prints one PASS or FAIL
+  line per check. Run one or a few with `npm run test:e2e -- booking chat`; screenshots land in
+  `e2e/screenshots`. Needs `npm run build`, the local Supabase stack and
+  `npx playwright install chromium`.
+
+What each area is covered by (unit = `src/**/*.test.ts`, db = `supabase/tests`, e2e = `e2e/suites`):
+
+| Area                  | Where                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| Authentication        | unit `auth/session`, `auth/schemas`; e2e `notifications` (sign-up), `security`, `customer` |
+| Authorization         | db `access_control`, `security`; unit `auth/permissions`; e2e `security`                   |
+| Provider approval     | db `business_onboarding`; e2e `admin`                                                      |
+| AI matching           | unit `concierge/*`, `matching/*`; db `matching_engine`; e2e `concierge`, `matching`        |
+| Business search       | db `matching_engine`; e2e `matching`, `profiles`                                           |
+| Booking               | unit `bookings/*`; db `booking_engine`; e2e `booking`                                      |
+| Payment               | unit `payments/*`; db `payments`; e2e `payments`, `revenue`                                |
+| Payment webhooks      | unit `payments/providers`; e2e `payments`, `security`                                      |
+| Chat                  | unit `chat/chat`; db `chat`; e2e `chat`                                                    |
+| File uploads          | unit `security/security`; e2e `chat`, `disputes`, `security`                               |
+| Reviews               | unit `reviews/reviews`; db `reviews`; e2e `reviews`                                        |
+| Disputes              | unit `disputes/disputes`; db `disputes`; e2e `disputes`                                    |
+| Notifications         | unit `notifications/notifications`; db `notifications`; e2e `notifications`                |
+| Admin permissions     | unit `auth/admin-path`; db `admin_dashboard`; e2e `admin`, `security`                      |
+| Security              | db `security`; unit `security/security`, `rate-limit`; e2e `security`                      |
+| Mobile responsiveness | e2e `mobile` (whole journey on a phone, every page at 320px)                               |
+| Error states          | unit `errors/http`, `utils/connection`; e2e `resilience`                                   |
+| Empty states          | e2e `resilience`                                                                           |
+| Loading states        | e2e `resilience`                                                                           |
+| Network failures      | unit `utils/connection`; e2e `resilience` (offline, lost replies)                          |
+| Duplicate bookings    | db `duplicates`; e2e `resilience` (double tap, retry, same slot)                           |
+| Duplicate payments    | e2e `resilience` (second checkout reused, second charge refunded)                          |
+| Unauthorized access   | db `access_control`; e2e `security` (changed ids, other users' pages)                      |
+| AI hallucinations     | unit `concierge/agent`, `concierge/rules`; e2e `concierge`                                 |
+| Prompt injection      | unit `concierge/injection`; e2e `concierge`                                                |
+
+### Duplicates and dropped connections
+
+- **Bookings:** the form sends a one-off request key, so a double tap or a resend after a lost
+  reply returns the booking already made (`create_booking`). A customer can't hold two open
+  bookings with the same business at the same start time.
+- **Payments:** a second "Pay" within 30 minutes reuses the open checkout. If two payments still
+  succeed for one booking, the second is refunded automatically, logged as `payment.duplicate` and
+  the customer is told.
+- **Connection lost:** forms keep what was typed and say "We couldn’t reach Concierge… Nothing was
+  sent." (`useFormAction`); chat and the concierge restore the unsent message.

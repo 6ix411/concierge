@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input, Select } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 import type { Bank } from "@/lib/payments/types";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -26,7 +27,7 @@ export function PayoutAccountForm({
   banks: Bank[];
   saved: SavedPayoutAccount | null;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   // The form is open from "Change" until the next successful save.
   const [editFrom, setEditFrom] = useState<FormState | null>(null);
   const errors = state.fieldErrors ?? {};

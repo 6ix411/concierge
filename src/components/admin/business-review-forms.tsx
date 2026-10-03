@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Select } from "@/components/ui";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin/business-actions";
 import { adminBusinessDecisions, type AdminBusinessDecision } from "@/lib/admin/business-review";
 import { documentTypeLabels } from "@/lib/business/verification";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 function Feedback({ state }: { state: FormState }) {
   if (!state.message) return null;
@@ -22,7 +23,7 @@ const textarea =
   "rounded-xl border border-border bg-surface p-3 text-base focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none sm:text-sm";
 
 function DecisionForm({ businessId, decision }: { businessId: string; decision: AdminBusinessDecision }) {
-  const [state, formAction, pending] = useActionState(decideBusinessAction.bind(null, decision), {
+  const [state, formAction, pending] = useFormAction(decideBusinessAction.bind(null, decision), {
     status: "idle",
   });
   const needsReason = decision === "reject" || decision === "suspend";
@@ -92,7 +93,7 @@ export function BusinessDecisions({
 }
 
 export function RequestInfoForm({ businessId }: { businessId: string }) {
-  const [state, formAction, pending] = useActionState(requestVerificationInfoAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(requestVerificationInfoAction, { status: "idle" });
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="businessId" value={businessId} />
@@ -127,10 +128,10 @@ export function RequestInfoForm({ businessId }: { businessId: string }) {
 }
 
 export function DocumentDecision({ verificationId }: { verificationId: string }) {
-  const [approveState, approve, approving] = useActionState(reviewDocumentAction.bind(null, "approved"), {
+  const [approveState, approve, approving] = useFormAction(reviewDocumentAction.bind(null, "approved"), {
     status: "idle",
   });
-  const [rejectState, reject, rejecting] = useActionState(reviewDocumentAction.bind(null, "rejected"), {
+  const [rejectState, reject, rejecting] = useFormAction(reviewDocumentAction.bind(null, "rejected"), {
     status: "idle",
   });
   const [rejectOpen, setRejectOpen] = useState(false);

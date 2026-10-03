@@ -1,18 +1,18 @@
 "use client";
 
 import { MapPin, X } from "lucide-react";
-import { useActionState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input, Select } from "@/components/ui";
 import { addServiceAreaAction, removeServiceAreaAction } from "@/lib/business/actions";
 import { nigerianStates } from "@/lib/business/locations";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Area = { id: string; state: string; city: string | null; area: string | null };
 
 /** Where the business works. The concierge only matches customers in these areas. */
 export function ServiceAreasEditor({ areas, defaultState }: { areas: Area[]; defaultState?: string | null }) {
-  const [state, formAction, pending] = useActionState(addServiceAreaAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(addServiceAreaAction, { status: "idle" });
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useState } from "react";
 
 import { textareaClass } from "@/components/admin/action-form";
 import { FormMessage } from "@/components/auth/form-message";
@@ -10,10 +10,11 @@ import { disputeReasons } from "@/lib/admin/rules";
 import { openDisputeAction } from "@/lib/disputes/actions";
 
 import { EvidencePicker } from "./evidence-picker";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** Lets the customer or the business open a dispute on a paid booking, with evidence. */
 export function ReportProblemForm({ bookingId, otherParty }: { bookingId: string; otherParty: string }) {
-  const [state, formAction, pending] = useActionState(openDisputeAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(openDisputeAction, { status: "idle" });
   const [open, setOpen] = useState(false);
   // Kept in state; the form is submitted by hand so an error doesn't clear what was typed or picked.
   const [draft, setDraft] = useState({ reasonCode: "", reason: "", description: "" });

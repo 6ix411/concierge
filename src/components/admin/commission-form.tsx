@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** A percentage field. With `optional`, leaving it empty clears a business's custom rate. */
 export function CommissionForm({
@@ -18,7 +17,7 @@ export function CommissionForm({
   defaultValue: string;
   optional?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   const id = businessId ? `commission-${businessId}` : "commission";
   return (
     <form action={formAction} className="flex flex-col gap-2">

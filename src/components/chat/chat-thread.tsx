@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 
 import { ReportForm } from "./report-form";
+import { CONNECTION_MESSAGE, isConnectionError } from "@/lib/utils/connection";
 
 const MESSAGE_COLUMNS =
   "id, sender_id, body, attachment_path, attachment_type, attachment_name, attachment_size, created_at";
@@ -164,56 +165,69 @@ export function ChatThread({
     if (!text && !file) return;
     setError(null);
     startSending(async () => {
-      const client = supabase();
+      try {
+        await deliver(text);
+      } catch (failure) {
+        setError(
+          isConnectionError(failure) ? CONNECTION_MESSAGE : "Your message wasn’t sent. Please try again.",
+        );
+      }
+    });
+  };
 
-      // A file goes to the conversation's folder, then the server checks it and sends the message.
-      if (file) {
-        const path = `${conversationId}/${crypto.randomUUID()}.${extensions[file.type as SniffedType] ?? "bin"}`;
-        const upload = await client.storage.from("chat-attachments").upload(path, file, {
-          contentType: file.type,
-        });
-        if (upload.error) {
-          setError("That file couldn’t be uploaded. Please try again.");
-          return;
-        }
-        const result = await sendAttachmentMessageAction({
-          conversationId,
-          path,
-          name: file.name.slice(0, 200),
-          body: text || undefined,
-        });
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-        const { data: signed } = await client.storage.from("chat-attachments").createSignedUrl(path, 3600);
-        addMessage({ ...result.message, attachment_url: signed?.signedUrl ?? null });
-        setBody("");
-        setFile(null);
-        if (fileRef.current) fileRef.current.value = "";
+  // Sends what's in the composer. Typed text and the chosen file stay put until it has gone.
+  const deliver = async (text: string) => {
+    const client = supabase();
+
+    // A file goes to the conversation's folder, then the server checks it and sends the message.
+    if (file) {
+      const path = `${conversationId}/${crypto.randomUUID()}.${extensions[file.type as SniffedType] ?? "bin"}`;
+      const upload = await client.storage.from("chat-attachments").upload(path, file, {
+        contentType: file.type,
+      });
+      if (upload.error) {
+        setError("That file couldn’t be uploaded. Please try again.");
         return;
       }
+      const result = await sendAttachmentMessageAction({
+        conversationId,
+        path,
+        name: file.name.slice(0, 200),
+        body: text || undefined,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      const { data: signed } = await client.storage.from("chat-attachments").createSignedUrl(path, 3600);
+      addMessage({ ...result.message, attachment_url: signed?.signedUrl ?? null });
+      setBody("");
+      setFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
 
-      const { data, error: insertError } = await client
-        .from("messages")
-        .insert({ conversation_id: conversationId, sender_id: currentUserId, body: text })
-        .select(MESSAGE_COLUMNS)
-        .single();
-      if (insertError || !data) {
-        setError(
-          insertError?.message.includes("too quickly")
+    const { data, error: insertError } = await client
+      .from("messages")
+      .insert({ conversation_id: conversationId, sender_id: currentUserId, body: text })
+      .select(MESSAGE_COLUMNS)
+      .single();
+    if (insertError || !data) {
+      setError(
+        isConnectionError(new Error(insertError?.message ?? ""))
+          ? CONNECTION_MESSAGE
+          : insertError?.message.includes("too quickly")
             ? "You’re sending messages too quickly. Please wait a moment."
             : insertError?.message.includes("blocked") || insertError?.message.includes("restricted")
               ? "This conversation can't receive messages right now."
               : "Your message wasn’t sent. Please try again.",
-        );
-        return;
-      }
-      addMessage({ ...data, attachment_url: null });
-      setBody("");
-      setFile(null);
-      if (fileRef.current) fileRef.current.value = "";
-    });
+      );
+      return;
+    }
+    addMessage({ ...data, attachment_url: null });
+    setBody("");
+    setFile(null);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const lastMine = messages.findLast((m) => m.sender_id === currentUserId);
