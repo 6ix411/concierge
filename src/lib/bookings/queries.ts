@@ -30,13 +30,16 @@ export async function getCustomerBooking(customerId: string, bookingId: string) 
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, needs_quote, scheduled_start, scheduled_end, address_line, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, platform_fee_minor, total_minor, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, businesses(id, name, slug, logo_path, is_verified), booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id, status), reviews(id, rating), payments(id, reference, status, amount_minor, refunded_minor, paid_at, provider, refund_status), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
+      "id, reference, status, needs_quote, scheduled_start, scheduled_end, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, platform_fee_minor, total_minor, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, businesses(id, name, slug, logo_path, is_verified), booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id, status), reviews(id, rating), payments(id, reference, status, amount_minor, refunded_minor, paid_at, provider, refund_status), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
     )
     .eq("id", bookingId)
     .eq("customer_id", customerId)
     .maybeSingle();
   if (error) throw new AppError("INTERNAL", "Could not load the booking.", { cause: error });
-  return data;
+  if (!data) return null;
+  // The street address isn't a readable column; the customer always gets their own.
+  const { data: addressLine } = await supabase.rpc("booking_address", { p_booking_id: data.id });
+  return { ...data, address_line: addressLine ?? null };
 }
 
 export type CustomerBooking = NonNullable<Awaited<ReturnType<typeof getCustomerBooking>>>;

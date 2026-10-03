@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -42,7 +42,7 @@ export async function updateCommissionAction(_prev: FormState, formData: FormDat
   } catch (error) {
     return toFormError(error, "We couldn't save the commission. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }
 
@@ -84,6 +84,6 @@ export async function setBusinessCommissionAction(_prev: FormState, formData: Fo
   } catch (error) {
     return toFormError(error, "We couldn't save the commission. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }

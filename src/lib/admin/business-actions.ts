@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
@@ -96,7 +96,7 @@ export async function decideBusinessAction(
   } catch (error) {
     return toFormError(error, "We couldn't update this business. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Business updated." };
 }
 
@@ -168,7 +168,7 @@ export async function requestVerificationInfoAction(
   } catch (error) {
     return toFormError(error, "We couldn't send the request. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Request sent to the business." };
 }
 
@@ -242,6 +242,6 @@ export async function reviewDocumentAction(
   } catch (error) {
     return toFormError(error, "We couldn't save that decision. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Saved." };
 }

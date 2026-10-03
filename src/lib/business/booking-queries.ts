@@ -49,13 +49,21 @@ export async function getBusinessBooking(bookingId: string, businessId: string) 
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, reference, status, needs_quote, scheduled_start, scheduled_end, address_line, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
+      "id, reference, status, needs_quote, scheduled_start, scheduled_end, area, city, state, guests, customer_notes, quote_notes, subtotal_minor, total_minor, commission_rate_bps, customer_id, created_at, accepted_at, confirmed_at, completed_at, cancelled_at, cancellation_reason, booking_items(id, name, unit_price_minor, quantity, total_minor, kind), conversations(id), disputes(id, status, reason, outcome, resolution, refund_due_minor, created_at), booking_events(id, event, from_status, to_status, actor_role, note, metadata, created_at)",
     )
     .eq("id", bookingId)
     .eq("business_id", businessId)
     .maybeSingle();
   if (error) throw new AppError("INTERNAL", "Could not load this booking.", { cause: error });
   if (!data) return null;
-  const names = await getCounterpartNames([data.customer_id]);
-  return { ...data, customerName: names.get(data.customer_id) ?? "Customer" };
+  // The customer's street address is shown only once the booking is confirmed (booking_address).
+  const [names, { data: addressLine }] = await Promise.all([
+    getCounterpartNames([data.customer_id]),
+    supabase.rpc("booking_address", { p_booking_id: data.id }),
+  ]);
+  return {
+    ...data,
+    address_line: addressLine ?? null,
+    customerName: names.get(data.customer_id) ?? "Customer",
+  };
 }

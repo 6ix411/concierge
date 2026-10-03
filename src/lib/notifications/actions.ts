@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -14,5 +14,5 @@ export async function markAllNotificationsReadAction(): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .eq("user_id", user.id)
     .is("read_at", null);
-  refresh();
+  refreshPage();
 }

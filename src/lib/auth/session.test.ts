@@ -16,6 +16,7 @@ vi.mock("react", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
+  bearerToken: async () => null,
   createClient: async () => ({
     auth: {
       getUser: async () => ({ data: { user: state.userId ? { id: state.userId } : null }, error: null }),

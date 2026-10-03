@@ -70,9 +70,17 @@ const instructionLeaks = [/\bsystem prompt\b/i, /\bmy (?:instructions|rules)\b/i
 const webClaims = [/\b(?:on|from|via)\s+(?:the\s+)?(?:internet|web|google)\b/i, /\bgoogle(?:d)?\b/i];
 
 const ratingPatterns = [
-  /\b(\d(?:\.\d)?)\s*(?:\/\s*5|stars?|★|out of 5)/gi,
-  /\brat(?:ed|ing(?: of)?)\s+(\d(?:\.\d)?)\b/gi,
+  /\b(\d(?:\.\d)?)[\s-]*(?:\/\s*5|stars?|★|out of 5)/gi,
+  /\brat(?:ed|ing(?: of)?)[:\s]+(\d(?:\.\d)?)\b/gi,
+  /\b(\d\.\d)[\s-]*(?:rating|rated|average)\b/gi,
 ];
+
+// "12 reviews", "3 ratings": counts must match what a tool returned too.
+const reviewCountPattern = /\b(\d{1,5})\s+(?:verified\s+|customer\s+)?(?:reviews?|ratings?)\b/gi;
+
+// Saying someone is free without having checked a date.
+const availabilityClaim =
+  /\b(?:is|are|they(?:'re|’re)|it(?:'s|’s)|she(?:'s|’s)|he(?:'s|’s))\s+(?:(?:still|also|definitely)\s+)?(?:available|free)\b|\bha(?:s|ve)\s+(?:availability|openings|a\s+slot)\b/i;
 
 export function checkReply(draft: ReplyDraft, context: GuardContext): string[] {
   const { facts } = context;
@@ -149,6 +157,14 @@ export function checkReply(draft: ReplyDraft, context: GuardContext): string[] {
     }
   }
 
+  const counts = new Set([...facts.providers.values()].map((provider) => provider.ratingCount));
+  for (const match of text.matchAll(reviewCountPattern)) {
+    if (!counts.has(Number(match[1])))
+      problems.push(
+        `${match[1]} reviews isn't in the tool results. Quote review counts exactly as returned.`,
+      );
+  }
+
   // Business names: any platform business mentioned must have come back from a tool just now.
   const seen = new Set([...facts.providers.values()].map((provider) => fold(provider.name)));
   const folded = fold(text);
@@ -161,10 +177,7 @@ export function checkReply(draft: ReplyDraft, context: GuardContext): string[] {
   }
 
   // Availability: only after checking a date.
-  if (
-    facts.datesChecked.size === 0 &&
-    /\b(?:is|are)\s+(?:available|free)\s+(?:on|this|next|that|for|at)\b/i.test(text)
-  )
+  if (facts.datesChecked.size === 0 && availabilityClaim.test(text))
     problems.push("You haven't checked availability. Search or get details with the date first.");
 
   // Recommending without having searched.

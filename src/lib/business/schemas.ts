@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sharesContactDetails } from "@/lib/chat/rules";
+
 import { isNigerianState } from "./locations";
 import { MIN_DESCRIPTION_LENGTH } from "./onboarding";
 
@@ -233,7 +235,11 @@ export const portfolioItemSchema = z.object({
 export const quoteSchema = z.object({
   bookingId: z.guid(),
   amount: nairaAmount,
-  notes: optionalText(3000),
+  // Contact details would take the booking (and its payment) off Concierge.
+  notes: optionalText(3000).refine(
+    (value) => !value || !sharesContactDetails(value),
+    "Please leave out phone numbers and email addresses. You can chat once the customer has paid.",
+  ),
 });
 
 export const bookingDecisionSchema = z.object({

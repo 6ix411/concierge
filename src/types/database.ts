@@ -1549,6 +1549,7 @@ export type Database = {
           id: string;
           is_flagged: boolean;
           sender_id: string;
+          shares_contact: boolean;
         };
         Insert: {
           attachment_name?: string | null;
@@ -1562,6 +1563,7 @@ export type Database = {
           id?: string;
           is_flagged?: boolean;
           sender_id: string;
+          shares_contact?: boolean;
         };
         Update: {
           attachment_name?: string | null;
@@ -1575,6 +1577,7 @@ export type Database = {
           id?: string;
           is_flagged?: boolean;
           sender_id?: string;
+          shares_contact?: boolean;
         };
         Relationships: [
           {
@@ -2369,6 +2372,7 @@ export type Database = {
     };
     Functions: {
       admin_dashboard_stats: { Args: { top_n?: number }; Returns: Json };
+      booking_address: { Args: { p_booking_id: string }; Returns: string };
       complete_business_charge: {
         Args: {
           p_channel: string;
@@ -2532,6 +2536,7 @@ export type Database = {
       prune_analytics_events: { Args: Record<PropertyKey, never>; Returns: number };
       queue_billing_reminders: { Args: Record<PropertyKey, never>; Returns: number };
       queue_scheduled_notifications: { Args: Record<PropertyKey, never>; Returns: number };
+      shares_contact_details: { Args: { p_text: string }; Returns: boolean };
       storage_owner_id: { Args: { object_name: string }; Returns: string };
     };
     Enums: {

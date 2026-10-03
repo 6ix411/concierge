@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
@@ -52,7 +52,7 @@ export async function moderateMessageAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the message. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: decision === "hide" ? "Message hidden." : "Message shown again." };
 }
 
@@ -115,7 +115,7 @@ export async function restrictConversationAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the chat. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: decision === "lock" ? "Chat restricted." : "Chat reopened." };
 }
 
@@ -168,7 +168,7 @@ export async function resolveReportAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the report. Please try again.");
   }
-  refresh();
+  refreshPage();
   return {
     status: "success",
     message: outcome === "actioned" ? "Report closed: action taken." : "Report dismissed.",

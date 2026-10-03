@@ -62,7 +62,7 @@ export default async function AdminConversationPage({ params }: PageProps<"/admi
     db
       .from("messages")
       .select(
-        "id, sender_id, body, attachment_path, attachment_type, attachment_name, attachment_size, is_flagged, hidden_at, created_at",
+        "id, sender_id, body, attachment_path, attachment_type, attachment_name, attachment_size, is_flagged, shares_contact, hidden_at, created_at",
       )
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true })
@@ -121,6 +121,7 @@ export default async function AdminConversationPage({ params }: PageProps<"/admi
                     <span className="font-medium text-foreground">{nameOf(message.sender_id)}</span>
                     {formatDateTime(message.created_at)}
                     {reportedMessages.has(message.id) && <Badge tone="danger">Reported</Badge>}
+                    {message.shares_contact && <Badge tone="accent">Shares contact details</Badge>}
                     {message.hidden_at && <Badge tone="neutral">Hidden from both sides</Badge>}
                   </p>
                   {message.body && (

@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -68,7 +68,7 @@ export async function moderateReviewAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the review. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: decision === "hide" ? "Review hidden." : "Review published." };
 }
 
@@ -114,7 +114,7 @@ export async function dismissReviewReportAction(_prev: FormState, formData: Form
   } catch (error) {
     return toFormError(error, "We couldn't update the review. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Report closed. The review stays up." };
 }
 
@@ -156,6 +156,6 @@ export async function removeReviewPhotoAction(_prev: FormState, formData: FormDa
   } catch (error) {
     return toFormError(error, "We couldn't remove the photo. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Photo removed." };
 }
