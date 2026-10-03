@@ -16,7 +16,8 @@ function authorised(header: string | null, secret: string): boolean {
 
 /**
  * Sends notifications queued for email, SMS or push. Called by a scheduler with
- * "Authorization: Bearer <CRON_SECRET>". Off (404) until CRON_SECRET is set.
+ * "Authorization: Bearer <CRON_SECRET>": Vercel Cron (GET, see vercel.json) or any other (POST).
+ * Off (404) until CRON_SECRET is set.
  */
 export async function POST(request: NextRequest) {
   const secret = getServerEnv().CRON_SECRET;
@@ -30,3 +31,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
+
+export const GET = POST;

@@ -1,7 +1,10 @@
 import "server-only";
 
+import { getServerEnv } from "@/lib/env/server";
 import { logger } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+import { createResendChannel } from "./email";
 
 /**
  * Email, SMS and push are added one channel at a time. Each is an adapter that sends one
@@ -9,8 +12,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * setting, the database queues every new notification for it in `notification_deliveries`, and
  * `dispatchDeliveries` sends what's queued through the matching adapter.
  *
- * To add a channel: write an adapter (e.g. email through a provider's API, with its key in an
- * environment variable), register it in `adapters` below, then add the channel to the setting.
+ * Email is live when RESEND_API_KEY and EMAIL_FROM are set. To add SMS or push: write an adapter
+ * (with its key in an environment variable), register it in `configuredChannels`, then add the
+ * channel to the setting.
  */
 export type ChannelName = "email" | "sms" | "push";
 
@@ -23,14 +27,27 @@ export interface NotificationChannel {
   send(notification: OutgoingNotification, recipient: Recipient): Promise<void>;
 }
 
-/** No channel besides in-app is live yet. */
-export const adapters: Partial<Record<ChannelName, NotificationChannel>> = {};
+/** The channels this server has credentials for. */
+export function configuredChannels(): Partial<Record<ChannelName, NotificationChannel>> {
+  const env = getServerEnv();
+  return {
+    ...(env.RESEND_API_KEY && env.EMAIL_FROM
+      ? {
+          email: createResendChannel({
+            apiKey: env.RESEND_API_KEY,
+            from: env.EMAIL_FROM,
+            appUrl: env.NEXT_PUBLIC_APP_URL,
+          }),
+        }
+      : {}),
+  };
+}
 
 const MAX_ATTEMPTS = 5;
 
 /** Sends queued deliveries. Run on a schedule (see /api/notifications/dispatch). */
 export async function dispatchDeliveries(
-  registry: Partial<Record<ChannelName, NotificationChannel>> = adapters,
+  registry: Partial<Record<ChannelName, NotificationChannel>> = configuredChannels(),
   limit = 100,
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   const db = createAdminClient();

@@ -31,15 +31,16 @@ npm run dev                  # http://localhost:3000
 
 ## Scripts
 
-| Script             | What it does                                               |
-| ------------------ | ---------------------------------------------------------- |
-| `npm run dev`      | Development server                                         |
-| `npm run build`    | Production build                                           |
-| `npm run check`    | Typecheck, lint, format check and tests                    |
-| `npm test`         | Unit and component tests                                   |
-| `npm run db:test`  | Database tests (pgTAP) against the local Supabase          |
-| `npm run test:e2e` | Browser suites against a production build (see Testing)    |
-| `npm run db:types` | Regenerate `src/types/database.ts` from the local database |
+| Script                  | What it does                                               |
+| ----------------------- | ---------------------------------------------------------- |
+| `npm run dev`           | Development server                                         |
+| `npm run build`         | Production build                                           |
+| `npm run check`         | Typecheck, lint, format check and tests                    |
+| `npm test`              | Unit and component tests                                   |
+| `npm run db:test`       | Database tests (pgTAP) against the local Supabase          |
+| `npm run test:e2e`      | Browser suites against a production build (see Testing)    |
+| `npm run check:secrets` | Fails if a key or filled-in secret is committed            |
+| `npm run db:types`      | Regenerate `src/types/database.ts` from the local database |
 
 ## Environments
 
@@ -411,15 +412,19 @@ read and mark their own as read, nothing else.
 
 ### Email, SMS and push
 
-Off for now; in-app is the only channel. The pieces to add them one at a time are in place:
+In-app notifications always work. **Email** is ready to switch on:
 
-1. Write an adapter for the channel in `src/lib/notifications/channels.ts` (e.g. email through a
-   provider's API, with its key in an environment variable) and register it in `adapters`.
-2. Add the channel to the `notification_channels` platform setting, e.g. `["email"]`. From then on
-   every new notification is also queued in `notification_deliveries` (server-only).
-3. Set `CRON_SECRET` and have a scheduler call `POST /api/notifications/dispatch` with
-   `Authorization: Bearer <CRON_SECRET>` every minute or so. It sends what's queued and retries
-   failures up to 5 times. The route answers 404 while `CRON_SECRET` is unset.
+1. Set `RESEND_API_KEY` and `EMAIL_FROM` (a sender on a domain verified in Resend). The adapter is
+   `src/lib/notifications/email.ts`; each email carries the title, text and a link that opens the
+   notification after sign-in.
+2. Add the channel to the `notification_channels` platform setting: `["email"]`. From then on every
+   new notification is also queued in `notification_deliveries` (server-only).
+3. Set `CRON_SECRET`. Vercel Cron calls `/api/notifications/dispatch` every 5 minutes (`vercel.json`)
+   with `Authorization: Bearer <CRON_SECRET>`; any other scheduler can POST the same. It sends what's
+   queued and retries failures up to 5 times. The route answers 404 while `CRON_SECRET` is unset.
+
+SMS and push follow the same pattern: an adapter registered in `configuredChannels`
+(`src/lib/notifications/channels.ts`), then the channel added to the setting.
 
 ## Business platform
 
@@ -732,3 +737,17 @@ What each area is covered by (unit = `src/**/*.test.ts`, db = `supabase/tests`, 
   the customer is told.
 - **Connection lost:** forms keep what was typed and say "We couldn’t reach Concierge… Nothing was
   sent." (`useFormAction`); chat and the concierge restore the unsent message.
+
+## Deployment
+
+Production runs on Vercel with Supabase, Paystack and Resend. The step-by-step checklist (database,
+environment variables, domain and SSL, webhooks, email, storage, monitoring, backups, first admin and
+go-live checks) is in [docs/deployment.md](docs/deployment.md).
+
+- **Secrets** live only in Vercel and Supabase settings. `npm run check:secrets` runs in CI.
+- **Settings are checked at start-up** (`src/instrumentation.ts`): in production the server won't run
+  without https URLs, live payment keys, the private admin path, the AI key and `CRON_SECRET`.
+- **Health:** `/api/health` reports the database, the deployed commit and which services are set
+  up (never their values), and answers 503 when the database is down.
+- **Errors:** every unhandled server error is logged as one JSON line (`"level":"error"`, path
+  without its query string, no headers) for the log drain.
