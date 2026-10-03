@@ -15,6 +15,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # No keys, private keys or filled-in secrets in committed files.
+      - run: npm run check:secrets
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check

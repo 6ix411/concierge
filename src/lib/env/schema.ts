@@ -34,6 +34,9 @@ export const serverEnvSchema = publicEnvSchema
     PAYSTACK_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_SECRET_KEY: z.string().optional(),
     FLUTTERWAVE_WEBHOOK_HASH: z.string().optional(),
+    // Email notifications through Resend. EMAIL_FROM must be on a domain verified in Resend.
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(3).optional(),
     // Lets a scheduler call /api/notifications/dispatch (email/SMS/push). Unset: the route is off.
     CRON_SECRET: z.string().min(32, "Use at least 32 characters (e.g. openssl rand -hex 32)").optional(),
     // Private URL segment for the admin dashboard. Generate with: openssl rand -hex 16
@@ -64,8 +67,24 @@ export const serverEnvSchema = publicEnvSchema
         message: "mock payments are not allowed in production",
       });
     }
-    if (env.APP_ENV === "production" && !env.ADMIN_PATH) {
-      ctx.addIssue({ code: "custom", path: ["ADMIN_PATH"], message: "Required when APP_ENV=production" });
+    if (Boolean(env.RESEND_API_KEY) !== Boolean(env.EMAIL_FROM)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [env.RESEND_API_KEY ? "EMAIL_FROM" : "RESEND_API_KEY"],
+        message: "Set RESEND_API_KEY and EMAIL_FROM together",
+      });
+    }
+    if (env.APP_ENV === "production") {
+      // Everything a live site needs: the private admin link, the AI, the scheduled notification job,
+      // and HTTPS everywhere.
+      for (const key of ["ADMIN_PATH", "ANTHROPIC_API_KEY", "CRON_SECRET"] as const) {
+        if (!env[key])
+          ctx.addIssue({ code: "custom", path: [key], message: "Required when APP_ENV=production" });
+      }
+      for (const key of ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_SUPABASE_URL"] as const) {
+        if (!env[key].startsWith("https://"))
+          ctx.addIssue({ code: "custom", path: [key], message: "Must use https:// when APP_ENV=production" });
+      }
     }
     if (env.APP_ENV === "production") {
       const testKey = [env.PAYSTACK_SECRET_KEY, env.FLUTTERWAVE_SECRET_KEY].some(

@@ -11,6 +11,15 @@ const base = {
   PAYSTACK_SECRET_KEY: "sk_test_x",
 };
 
+const live = {
+  APP_ENV: "production",
+  NEXT_PUBLIC_APP_URL: "https://concierge.ng",
+  NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
+  PAYSTACK_SECRET_KEY: "sk_live_x",
+  ADMIN_PATH: "a1b2c3d4e5f6a7b8c9d0",
+  CRON_SECRET: "c".repeat(64),
+};
+
 describe("server env", () => {
   it("applies defaults", () => {
     const env = parseEnv(serverEnvSchema, base, "server");
@@ -47,17 +56,32 @@ describe("server env", () => {
     expect(() => parseEnv(serverEnvSchema, { ...base, APP_ENV: "production" }, "server")).toThrow(
       /Test payment keys/,
     );
+    expect(() => parseEnv(serverEnvSchema, { ...base, ...live }, "server")).not.toThrow();
+  });
+
+  it("requires the AI key, the cron secret and https in production", () => {
+    for (const key of ["ANTHROPIC_API_KEY", "CRON_SECRET"] as const) {
+      expect(() => parseEnv(serverEnvSchema, { ...base, ...live, [key]: undefined }, "server")).toThrow(
+        new RegExp(key),
+      );
+    }
     expect(() =>
-      parseEnv(
-        serverEnvSchema,
-        {
-          ...base,
-          APP_ENV: "production",
-          PAYSTACK_SECRET_KEY: "sk_live_x",
-          ADMIN_PATH: "a1b2c3d4e5f6a7b8c9d0",
-        },
-        "server",
-      ),
+      parseEnv(serverEnvSchema, { ...base, ...live, NEXT_PUBLIC_APP_URL: "http://concierge.ng" }, "server"),
+    ).toThrow(/NEXT_PUBLIC_APP_URL: Must use https/);
+    expect(() =>
+      parseEnv(serverEnvSchema, { ...base, ...live, NEXT_PUBLIC_SUPABASE_URL: "http://db.local" }, "server"),
+    ).toThrow(/NEXT_PUBLIC_SUPABASE_URL: Must use https/);
+  });
+
+  it("needs both email settings or neither", () => {
+    expect(() => parseEnv(serverEnvSchema, { ...base, RESEND_API_KEY: "re_x" }, "server")).toThrow(
+      /EMAIL_FROM/,
+    );
+    expect(() => parseEnv(serverEnvSchema, { ...base, EMAIL_FROM: "a@b.ng" }, "server")).toThrow(
+      /RESEND_API_KEY/,
+    );
+    expect(() =>
+      parseEnv(serverEnvSchema, { ...base, RESEND_API_KEY: "re_x", EMAIL_FROM: "a@b.ng" }, "server"),
     ).not.toThrow();
   });
 });
