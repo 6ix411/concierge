@@ -46,3 +46,7 @@ supabase/.temp
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Browser test output
+/e2e/screenshots/
+/e2e/fixtures/big.jpg

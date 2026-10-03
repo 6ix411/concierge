@@ -1,12 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input, Select } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 import { nigerianStates } from "@/lib/business/locations";
 import { MIN_DESCRIPTION_LENGTH } from "@/lib/business/onboarding";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -38,7 +37,7 @@ export function DetailsForm({
   submitLabel?: string;
   next?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   const errors = state.fieldErrors ?? {};
   // After a failed save, keep what was typed rather than the saved values.
   const value = (key: string, saved?: string | null) => state.values?.[key] ?? saved ?? "";

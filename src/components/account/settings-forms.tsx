@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input } from "@/components/ui";
 import { changePasswordAction, updateProfileAction } from "@/lib/account/actions";
 import type { FormState } from "@/lib/auth/schemas";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const idle: FormState = { status: "idle" };
 
@@ -16,7 +15,7 @@ export function ProfileForm({
   defaults: { fullName: string; phone: string; addressLine: string; city: string; state: string };
   showAddress: boolean;
 }) {
-  const [state, action, pending] = useActionState(updateProfileAction, idle);
+  const [state, action, pending] = useFormAction(updateProfileAction, idle);
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.message && (
@@ -67,7 +66,7 @@ export function ProfileForm({
 }
 
 export function PasswordForm() {
-  const [state, action, pending] = useActionState(changePasswordAction, idle);
+  const [state, action, pending] = useFormAction(changePasswordAction, idle);
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.message && (

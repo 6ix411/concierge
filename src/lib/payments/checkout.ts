@@ -4,12 +4,16 @@ import { randomBytes } from "node:crypto";
 
 import { getServerEnv } from "@/lib/env/server";
 import { AppError, logger } from "@/lib/errors";
+import { formatNaira } from "@/lib/format";
 import { notify } from "@/lib/notifications";
 import { logSecurityEvent } from "@/lib/security/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 
 import { getPaymentProvider } from "./index";
+import { refundPayment } from "./refunds";
+
+const OPEN_CHECKOUT_MS = 30 * 60_000;
 
 export function newPaymentReference(): string {
   return `PAY-${randomBytes(8).toString("hex").toUpperCase()}`;
@@ -25,6 +29,24 @@ export async function startPayment(
 ) {
   const provider = getPaymentProvider();
   const admin = createAdminClient();
+
+  // A checkout opened in the last half hour is still open: send the customer back to it rather
+  // than starting a second charge (two tabs, a double tap, or coming back from the provider).
+  const { data: open } = await admin
+    .from("payments")
+    .select("checkout_url")
+    .eq("booking_id", booking.id)
+    .eq("payer_id", customer.id)
+    .eq("provider", provider.name)
+    .eq("status", "pending")
+    .eq("amount_minor", booking.total_minor)
+    .not("checkout_url", "is", null)
+    .gte("created_at", new Date(Date.now() - OPEN_CHECKOUT_MS).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (open?.checkout_url) return open.checkout_url;
+
   const reference = newPaymentReference();
 
   const { error } = await admin.from("payments").insert({
@@ -47,6 +69,7 @@ export async function startPayment(
       callbackUrl: `${getServerEnv().NEXT_PUBLIC_APP_URL}/api/payments/callback`,
       metadata: { bookingId: booking.id },
     });
+    await admin.from("payments").update({ checkout_url: authorizationUrl }).eq("reference", reference);
     return authorizationUrl;
   } catch (cause) {
     await admin
@@ -116,21 +139,43 @@ export async function finalizePayment(
     return { bookingId: payment.booking_id, paid: false };
   }
 
-  const { data: recorded, error: paymentError } = await admin
+  // Someone already paid for this booking (two tabs, or a retry after a lost reply): this payment is
+  // recorded as a duplicate and given straight back.
+  const { count: alreadyPaid } = await admin
     .from("payments")
-    .update({
-      status: "success",
-      paid_at: (result.paidAt ?? new Date()).toISOString(),
-      provider_reference: result.providerReference,
-      channel: result.channel,
-      provider_payload: evidence,
-    })
-    .eq("id", payment.id)
-    .in("status", ["pending", "failed", "abandoned"])
-    .select("id");
+    .select("id", { count: "exact", head: true })
+    .eq("booking_id", payment.booking_id)
+    .neq("id", payment.id)
+    .eq("duplicate", false)
+    .in("status", ["success", "partially_refunded", "refunded"]);
+  const record = (duplicate: boolean) =>
+    admin
+      .from("payments")
+      .update({
+        status: "success",
+        duplicate,
+        paid_at: (result.paidAt ?? new Date()).toISOString(),
+        provider_reference: result.providerReference,
+        channel: result.channel,
+        provider_payload: evidence,
+      })
+      .eq("id", payment.id)
+      .in("status", ["pending", "failed", "abandoned"])
+      .select("id");
+  let duplicate = (alreadyPaid ?? 0) > 0;
+  let { data: recorded, error: paymentError } = await record(duplicate);
+  // Both payments were verified at the same moment and the other one was recorded first.
+  if (paymentError?.code === "23505" && !duplicate) {
+    duplicate = true;
+    ({ data: recorded, error: paymentError } = await record(true));
+  }
   if (paymentError) throw new AppError("INTERNAL", "Could not record the payment.", { cause: paymentError });
   // The callback and the webhook can arrive together: only the one that recorded the payment goes on.
   if (!recorded?.length) return { bookingId: payment.booking_id, paid: true };
+  if (duplicate) {
+    await refundDuplicatePayment(reference, payment.booking_id);
+    return { bookingId: payment.booking_id, paid: true };
+  }
 
   const { data: confirmed, error: bookingError } = await admin
     .from("bookings")
@@ -139,10 +184,9 @@ export async function finalizePayment(
     .eq("status", "payment_pending")
     .select("id, reference, customer_id, businesses(owner_id)")
     .maybeSingle();
-  if (bookingError || !confirmed) {
-    // Paid, but the booking moved on (for example it was cancelled). It shows up as a refund due.
+  // Paid, but the booking moved on (for example it was cancelled). It shows up as a refund due.
+  if (bookingError || !confirmed)
     logger.error("Paid booking could not be confirmed", { reference, error: bookingError });
-  }
 
   if (confirmed) {
     await notify(
@@ -167,4 +211,31 @@ export async function finalizePayment(
     );
   }
   return { bookingId: payment.booking_id, paid: true };
+}
+
+/** Refunds a second successful payment for a booking that was already paid, and tells the customer. */
+async function refundDuplicatePayment(reference: string, bookingId: string) {
+  const admin = createAdminClient();
+  const { data: duplicate } = await admin
+    .from("payments")
+    .select(
+      "id, reference, provider, provider_reference, amount_minor, refunded_minor, status, refund_status, payer_id",
+    )
+    .eq("reference", reference)
+    .single();
+  await logSecurityEvent("payment.duplicate", { details: { reference, bookingId } });
+  if (!duplicate) return;
+  try {
+    await refundPayment(duplicate);
+    await notify({
+      userId: duplicate.payer_id,
+      type: "booking.refunded",
+      title: "Duplicate payment refunded",
+      body: `This booking was already paid, so we’re sending back ${formatNaira(duplicate.amount_minor)}. Banks can take a few working days.`,
+      data: { bookingId },
+    });
+  } catch (error) {
+    // Left for an admin: the payment shows as paid with nothing to confirm.
+    logger.error("Could not refund a duplicate payment", { reference, error });
+  }
 }

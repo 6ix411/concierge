@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useState } from "react";
 
 import { textareaClass } from "@/components/admin/action-form";
 import { FormMessage } from "@/components/auth/form-message";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 
 import { EvidencePicker } from "./evidence-picker";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -21,7 +22,7 @@ export function DisputeComposer({
   action: Action;
   admin?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" } as FormState);
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" } as FormState);
   // The text and files survive an error; a successful send clears them.
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);

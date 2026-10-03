@@ -1,16 +1,17 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input } from "@/components/ui";
 import type { FormState } from "@/lib/auth/schemas";
 import { acceptQuoteAction, cancelBookingAction, rescheduleBookingAction } from "@/lib/bookings/actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const idle: FormState = { status: "idle" };
 
 export function AcceptQuoteForm({ bookingId, label }: { bookingId: string; label: string }) {
-  const [state, action, pending] = useActionState(acceptQuoteAction, idle);
+  const [state, action, pending] = useFormAction(acceptQuoteAction, idle);
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="bookingId" value={bookingId} />
@@ -36,7 +37,7 @@ export function RescheduleForm({
   defaultTime?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(rescheduleBookingAction, idle);
+  const [state, action, pending] = useFormAction(rescheduleBookingAction, idle);
 
   if (!open) {
     return (
@@ -84,7 +85,7 @@ export function RescheduleForm({
 
 export function CancelBookingForm({ bookingId, afterPayment }: { bookingId: string; afterPayment: boolean }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState(cancelBookingAction, idle);
+  const [state, action, pending] = useFormAction(cancelBookingAction, idle);
 
   if (state.status === "success") return <FormMessage tone="success">{state.message}</FormMessage>;
   if (!open) {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { Button, Input } from "@/components/ui";
 import { signUpAction } from "@/lib/auth/actions";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils/cn";
 import type { SelfServiceRole } from "@/types/roles";
 
 import { FormMessage } from "./form-message";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const initialState: FormState = { status: "idle" };
 
@@ -19,7 +20,7 @@ const roleOptions: { value: SelfServiceRole; title: string; body: string }[] = [
 ];
 
 export function SignUpForm({ defaultRole = "customer" }: { defaultRole?: SelfServiceRole }) {
-  const [state, formAction, pending] = useActionState(signUpAction, initialState);
+  const [state, formAction, pending] = useFormAction(signUpAction, initialState);
   const [role, setRole] = useState<SelfServiceRole>(
     (state.values?.role as SelfServiceRole | undefined) ?? defaultRole,
   );

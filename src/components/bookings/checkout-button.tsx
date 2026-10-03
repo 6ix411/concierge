@@ -1,11 +1,12 @@
 "use client";
 
 import { Lock } from "lucide-react";
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import type { CheckoutState } from "@/lib/payments/actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 export function CheckoutButton({
   action,
@@ -18,7 +19,7 @@ export function CheckoutButton({
   size?: "md" | "lg";
   variant?: "primary" | "outline";
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   const leaving = Boolean(state.redirectTo);
   useEffect(() => {
     if (state.redirectTo) window.location.assign(state.redirectTo);

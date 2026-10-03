@@ -1,17 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { Button, Input } from "@/components/ui";
 import { resetPasswordAction } from "@/lib/auth/actions";
 import type { FormState } from "@/lib/auth/schemas";
 
 import { FormMessage } from "./form-message";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const initialState: FormState = { status: "idle" };
 
 export function ResetPasswordForm() {
-  const [state, formAction, pending] = useActionState(resetPasswordAction, initialState);
+  const [state, formAction, pending] = useFormAction(resetPasswordAction, initialState);
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
       {state.message && <FormMessage tone="error">{state.message}</FormMessage>}

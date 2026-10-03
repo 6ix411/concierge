@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { priceLabel } from "@/components/marketplace/service-list";
@@ -12,6 +12,7 @@ import type { ServiceKind } from "@/lib/business/schemas";
 import { cn } from "@/lib/utils/cn";
 
 import type { CategoryOption } from "./details-form";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const kindOptions: { value: ServiceKind; title: string; body: string }[] = [
   { value: "service", title: "Service", body: "A single service, e.g. a deep clean." },
@@ -39,7 +40,7 @@ function ServiceForm({
   categories: CategoryOption[];
   onDone: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(saveServiceAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(saveServiceAction, { status: "idle" });
   const value = (key: string, saved: string) => state.values?.[key] ?? saved;
   const [kind, setKind] = useState<ServiceKind>(
     (state.values?.kind as ServiceKind) ?? (service ? kindOf(service) : "service"),

@@ -10,6 +10,7 @@ import type { ChatTurn, ConciergeReply } from "@/lib/concierge/types";
 
 import { AssistantAvatar, AssistantReply } from "./assistant-reply";
 import { conciergeExamples } from "./concierge-box";
+import { CONNECTION_MESSAGE, isConnectionError } from "@/lib/utils/connection";
 
 export type Turn = { id: string; role: "user" | "assistant"; content: string; reply: ConciergeReply | null };
 
@@ -65,8 +66,15 @@ export function ConciergeChat({
         setConversationId(result.conversationId);
         window.history.replaceState(null, "", `/concierge?c=${result.conversationId}`);
       }
-    } catch {
-      setError("The concierge is unavailable right now. Please try again.");
+    } catch (failure) {
+      // Nothing reached the concierge: put the message back so it can be sent again.
+      setTurns((current) => current.slice(0, -1));
+      setDraft(message);
+      setError(
+        isConnectionError(failure)
+          ? CONNECTION_MESSAGE
+          : "The concierge is unavailable right now. Please try again.",
+      );
     } finally {
       setPending(false);
     }

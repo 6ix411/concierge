@@ -31,6 +31,7 @@ export async function recordPayout(booking: {
     .select("id, amount_minor, platform_fee_minor, provider_amount_minor, booking_fee_minor")
     .eq("booking_id", booking.id)
     .eq("status", "success")
+    .eq("duplicate", false)
     .maybeSingle();
   const fee = payment?.booking_fee_minor ?? 0;
   const gross = payment ? payment.amount_minor - fee : booking.total_minor;

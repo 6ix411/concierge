@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Select } from "@/components/ui";
 import { reportAction } from "@/lib/chat/actions";
 import { reportReasons } from "@/lib/chat/rules";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** Reports a message, or the other person when there's no message, to the Concierge team. */
 export function ReportForm({
@@ -19,7 +18,7 @@ export function ReportForm({
   title: string;
   onClose: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(reportAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(reportAction, { status: "idle" });
   if (state.status === "success") {
     return (
       <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { priceLabel } from "@/components/marketplace/service-list";
@@ -10,6 +10,7 @@ import { bookingFeeFor, NO_BOOKING_FEE, type BookingFeeRule } from "@/lib/bookin
 import { formatNaira } from "@/lib/format";
 import type { BusinessService } from "@/lib/marketplace/queries";
 import { cn } from "@/lib/utils/cn";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -114,7 +115,7 @@ export function BookingForm({
   /** Shown so the customer sees the full price; the server works out the real amount. */
   bookingFee?: BookingFeeRule;
 }) {
-  const [state, formAction, pending] = useActionState(action, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(action, { status: "idle" });
   // On phones a slim total-and-send bar follows the customer until the summary itself is on screen.
   const summaryRef = useRef<HTMLDivElement>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
@@ -136,6 +137,8 @@ export function BookingForm({
     preselected.find((id) => packages.some((p) => p.id === id)) ?? "",
   );
   const [mode, setMode] = useState<"book" | "quote">(quoteMode ? "quote" : "book");
+  // One key per visit to the form: sending it twice can't make two bookings.
+  const [requestKey] = useState(() => crypto.randomUUID());
 
   const chosenPackage = packages.find((p) => p.id === packageId);
   const hasMain = mainServices.some((service) => selected[service.id]) || Boolean(chosenPackage);
@@ -175,6 +178,7 @@ export function BookingForm({
       noValidate
     >
       <input type="hidden" name="mode" value={mode} />
+      <input type="hidden" name="requestKey" value={requestKey} />
       {state.message && (
         <FormMessage tone={state.status === "success" ? "success" : "error"}>{state.message}</FormMessage>
       )}

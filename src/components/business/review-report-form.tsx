@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import { reportReviewAction } from "@/lib/business/review-actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** Flags a review for the Concierge team to check. The business can't remove reviews itself. */
 export function ReviewReportForm({ reviewId }: { reviewId: string }) {
-  const [state, formAction, pending] = useActionState(reportReviewAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(reportReviewAction, { status: "idle" });
   const [open, setOpen] = useState(false);
   if (state.status === "success" && state.message)
     return <FormMessage tone="success">{state.message}</FormMessage>;

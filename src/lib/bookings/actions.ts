@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -178,6 +179,8 @@ export async function createBookingAction(
           platform_fee_minor: quote.platformFeeMinor,
           total_minor: quote.totalMinor,
           commission_rate_bps: commission,
+          // Retries of this same submission get the booking it already made.
+          request_key: z.guid().safeParse(formData.get("requestKey")).data ?? null,
         },
         p_items: quote.items.map((item, index) => ({
           service_id: item.serviceId,
@@ -188,10 +191,15 @@ export async function createBookingAction(
         })),
       })
       .single();
+    if (createError?.code === "23505")
+      return {
+        status: "error",
+        message: `You already have a booking with ${business.name} at that time. You can find it in My bookings.`,
+      };
     if (createError || !created)
       throw new AppError("INTERNAL", "Could not create the booking.", { cause: createError });
 
-    if (private_?.owner_id) {
+    if (created.created && private_?.owner_id) {
       await notify({
         userId: private_.owner_id,
         type: isQuote ? "booking.quote_requested" : "booking.requested",

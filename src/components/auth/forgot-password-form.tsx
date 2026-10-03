@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
 
 import { Button, Input } from "@/components/ui";
 import { requestPasswordResetAction } from "@/lib/auth/actions";
 import type { FormState } from "@/lib/auth/schemas";
 
 import { FormMessage } from "./form-message";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const initialState: FormState = { status: "idle" };
 
 export function ForgotPasswordForm() {
-  const [state, formAction, pending] = useActionState(requestPasswordResetAction, initialState);
+  const [state, formAction, pending] = useFormAction(requestPasswordResetAction, initialState);
   if (state.status === "success")
     return (
       <div className="flex flex-col gap-4">

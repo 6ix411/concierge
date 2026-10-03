@@ -36,3 +36,42 @@ jobs:
       - run: supabase db start
       - run: supabase db lint --level warning --fail-on warning
       - run: supabase test db
+
+  # Every browser suite in e2e/suites, each against a freshly seeded local database.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start -x studio,edge-runtime,logflare,vector,supavisor,imgproxy,postgres-meta
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Local settings (development keys from the local stack, no real secrets)
+        run: |
+          eval "$(supabase status -o env)"
+          cat > .env.local <<EOF
+          APP_ENV=development
+          NEXT_PUBLIC_APP_URL=http://localhost:3000
+          ADMIN_PATH=5c1e0f7a9b2d4e6f8a0c2e4f6a8b0d1e
+          NEXT_PUBLIC_SUPABASE_URL=$API_URL
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY
+          SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
+          ANTHROPIC_MODEL=claude-sonnet-5-5
+          PAYMENT_PROVIDER=mock
+          EOF
+          sed -i 's/^ *//' .env.local
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots
+          path: e2e/screenshots
+          retention-days: 7

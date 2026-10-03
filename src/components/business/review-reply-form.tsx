@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import { replyToReviewAction } from "@/lib/business/review-actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 /** A public reply under a customer's review. */
 export function ReviewReplyForm({ reviewId, existing }: { reviewId: string; existing: string | null }) {
-  const [state, formAction, pending] = useActionState(replyToReviewAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(replyToReviewAction, { status: "idle" });
   const [open, setOpen] = useState(false);
   if (!open) {
     return (

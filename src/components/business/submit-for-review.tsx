@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-
 import { FormMessage } from "@/components/auth/form-message";
 import { Button } from "@/components/ui";
 import { submitForReviewAction } from "@/lib/business/actions";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 export function SubmitForReview({
   resubmit = false,
@@ -13,7 +12,7 @@ export function SubmitForReview({
   resubmit?: boolean;
   disabled?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(submitForReviewAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(submitForReviewAction, { status: "idle" });
   return (
     <form action={formAction} className="flex flex-col gap-3">
       {state.message && <FormMessage tone="error">{state.message}</FormMessage>}

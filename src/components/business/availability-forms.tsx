@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarX, X } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormMessage } from "@/components/auth/form-message";
 import { Button, Input } from "@/components/ui";
@@ -13,6 +13,7 @@ import {
 } from "@/lib/business/actions";
 import { formatDate, weekdayNames } from "@/lib/format";
 import { cn } from "@/lib/utils/cn";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 type Rule = {
   id: string;
@@ -29,7 +30,7 @@ const hhmm = (time: string | null | undefined) => (time ? time.slice(0, 5) : "")
 
 /** Opening days and hours for each day of the week. */
 export function WeeklyHoursForm({ rules, next }: { rules: Rule[]; next?: string }) {
-  const [state, formAction, pending] = useActionState(saveWeeklyHoursAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(saveWeeklyHoursAction, { status: "idle" });
   const weekly = new Map(
     rules.filter((r) => r.day_of_week !== null).map((r) => [r.day_of_week as number, r]),
   );
@@ -123,7 +124,7 @@ export function BookingSettingsForm({
     max_bookings_per_day: number | null;
   };
 }) {
-  const [state, formAction, pending] = useActionState(saveBookingSettingsAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(saveBookingSettingsAction, { status: "idle" });
   const value = (key: string, saved: string) => state.values?.[key] ?? saved;
   const errors = state.fieldErrors ?? {};
   return (
@@ -190,7 +191,7 @@ export function BookingSettingsForm({
 
 /** One-off days the business is closed (holidays, other commitments). */
 export function DaysOffEditor({ rules, minDate }: { rules: Rule[]; minDate: string }) {
-  const [state, formAction, pending] = useActionState(addDayOffAction, { status: "idle" });
+  const [state, formAction, pending] = useFormAction(addDayOffAction, { status: "idle" });
   const daysOff = rules
     .filter((r) => r.specific_date && !r.is_available && r.specific_date >= minDate)
     .sort((a, b) => (a.specific_date ?? "").localeCompare(b.specific_date ?? ""));

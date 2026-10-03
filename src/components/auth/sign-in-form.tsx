@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
 
 import { Button, Input } from "@/components/ui";
 import { signInAction } from "@/lib/auth/actions";
 import type { FormState } from "@/lib/auth/schemas";
 
 import { FormMessage } from "./form-message";
+import { useFormAction } from "@/lib/utils/use-form-action";
 
 const initialState: FormState = { status: "idle" };
 
 export function SignInForm({ next, notice }: { next?: string; notice?: string }) {
-  const [state, formAction, pending] = useActionState(signInAction, initialState);
+  const [state, formAction, pending] = useFormAction(signInAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>

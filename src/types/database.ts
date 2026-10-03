@@ -315,6 +315,7 @@ export type Database = {
           platform_fee_minor: number;
           quote_notes: string | null;
           reference: string;
+          request_key: string | null;
           scheduled_end: string | null;
           scheduled_start: string | null;
           state: string | null;
@@ -347,6 +348,7 @@ export type Database = {
           platform_fee_minor?: number;
           quote_notes?: string | null;
           reference?: string;
+          request_key?: string | null;
           scheduled_end?: string | null;
           scheduled_start?: string | null;
           state?: string | null;
@@ -379,6 +381,7 @@ export type Database = {
           platform_fee_minor?: number;
           quote_notes?: string | null;
           reference?: string;
+          request_key?: string | null;
           scheduled_end?: string | null;
           scheduled_start?: string | null;
           state?: string | null;
@@ -1721,9 +1724,11 @@ export type Database = {
           booking_id: string;
           business_id: string;
           channel: string | null;
+          checkout_url: string | null;
           commission_rate_bps: number;
           created_at: string;
           currency: string;
+          duplicate: boolean;
           failure_reason: string | null;
           id: string;
           paid_at: string | null;
@@ -1747,9 +1752,11 @@ export type Database = {
           booking_id: string;
           business_id: string;
           channel?: string | null;
+          checkout_url?: string | null;
           commission_rate_bps: number;
           created_at?: string;
           currency?: string;
+          duplicate?: boolean;
           failure_reason?: string | null;
           id?: string;
           paid_at?: string | null;
@@ -1773,9 +1780,11 @@ export type Database = {
           booking_id?: string;
           business_id?: string;
           channel?: string | null;
+          checkout_url?: string | null;
           commission_rate_bps?: number;
           created_at?: string;
           currency?: string;
+          duplicate?: boolean;
           failure_reason?: string | null;
           id?: string;
           paid_at?: string | null;
@@ -2375,6 +2384,7 @@ export type Database = {
       create_booking: {
         Args: { p_booking: Json; p_items: Json };
         Returns: {
+          created: boolean;
           id: string;
           reference: string;
         }[];
