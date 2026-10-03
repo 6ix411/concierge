@@ -36,7 +36,7 @@ const errors = [];
 const phone = devices["iPhone 13"]; // 390 x 844, touch, mobile Safari UA
 async function as(email, device = phone) {
   const { defaultBrowserType: _browserType, ...options } = device;
-  const ctx = await browser.newContext(options);
+  const ctx = await browser.newContext({ serviceWorkers: "block", ...options });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
   await p.goto(base + "/sign-in");

@@ -35,7 +35,12 @@ const browser = await chromium.launch();
 const errors = [];
 const cspViolations = [];
 async function context(viewport = { width: 1280, height: 900 }, headers = {}) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, extraHTTPHeaders: headers });
+  const ctx = await browser.newContext({
+    serviceWorkers: "block",
+    viewport,
+    deviceScaleFactor: 2,
+    extraHTTPHeaders: headers,
+  });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("console", (m) => {

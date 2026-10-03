@@ -17,7 +17,11 @@ const pageErrors = [];
 
 const browser = await chromium.launch();
 const newPage = async (width = 390, height = 844) => {
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({
+    serviceWorkers: "block",
+    viewport: { width, height },
+    deviceScaleFactor: 2,
+  });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => pageErrors.push(e.message));
   return p;

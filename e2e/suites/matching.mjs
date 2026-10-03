@@ -40,7 +40,7 @@ for (const [label, viewport] of [
   ["desktop", { width: 1280, height: 900 }],
   ["mobile", { width: 390, height: 844 }],
 ]) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ serviceWorkers: "block", viewport, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   try {

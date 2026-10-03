@@ -33,7 +33,7 @@ const webhook = (provider, body, headers = {}) =>
 const browser = await chromium.launch();
 const errors = [];
 async function as(email, viewport = { width: 1280, height: 900 }) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ serviceWorkers: "block", viewport, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(`${email}: ${e.message}`));
   await p.goto(base + "/sign-in");

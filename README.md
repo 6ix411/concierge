@@ -723,6 +723,9 @@ Three layers, all run in CI on every pull request:
   line per check. Run one or a few with `npm run test:e2e -- booking chat`; screenshots land in
   `e2e/screenshots`. Needs `npm run build`, the local Supabase stack and
   `npx playwright install chromium`.
+  Suites block the service worker (`serviceWorkers: "block"`), because Playwright's request routing
+  and user-agent settings don't reach requests a service worker makes. The `api` suite tests the
+  service worker itself.
 
 What each area is covered by (unit = `src/**/*.test.ts`, db = `supabase/tests`, e2e = `e2e/suites`):
 

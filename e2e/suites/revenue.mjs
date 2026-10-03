@@ -33,7 +33,7 @@ const tuesday = (days) => {
 const browser = await chromium.launch();
 const errors = [];
 async function page(viewport = { width: 1280, height: 900 }) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ serviceWorkers: "block", viewport, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
   return p;
