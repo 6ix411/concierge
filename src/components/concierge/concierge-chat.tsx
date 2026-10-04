@@ -206,7 +206,7 @@ export function ConciergeChat({
           event.preventDefault();
           void send(draft);
         }}
-        className="sticky bottom-(--bottom-nav) flex flex-col gap-2 border-t border-border bg-background pt-4 pb-2"
+        className="sticky bottom-(--bottom-nav) z-10 flex flex-col gap-2 border-t border-border bg-background pt-4 pb-2"
       >
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm">
           <label htmlFor="concierge-message" className="sr-only">
