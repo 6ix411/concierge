@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -36,6 +36,6 @@ export async function savePayoutAccountAction(_prev: FormState, formData: FormDa
   } catch (error) {
     return { ...toFormError(error, "We couldn't save your bank account. Please try again."), values };
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }

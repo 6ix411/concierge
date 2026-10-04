@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import type { FormState } from "@/lib/auth/schemas";
@@ -131,7 +131,7 @@ export async function blockAction(conversationId: string, _prev: FormState): Pro
   } catch (error) {
     return toFormError(error, "We couldn't block this person. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Blocked. Neither of you can send messages here now." };
 }
 
@@ -148,6 +148,6 @@ export async function unblockAction(conversationId: string, _prev: FormState): P
   } catch (error) {
     return toFormError(error, "We couldn't unblock. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Unblocked." };
 }

@@ -12,6 +12,14 @@ import { updateSession } from "@/lib/supabase/proxy";
  * database enforces row level security on top.
  */
 export async function proxy(request: NextRequest) {
+  // The mobile API signs in with a bearer token only. Dropping cookies here means a browser's
+  // website session can never be used against it, so other sites can't call it as a visitor.
+  if (request.nextUrl.pathname.startsWith("/api/v1/")) {
+    const headers = new Headers(request.headers);
+    headers.delete("cookie");
+    return NextResponse.next({ request: { headers } });
+  }
+
   const nonce = createNonce();
   const csp = contentSecurityPolicy(
     nonce,

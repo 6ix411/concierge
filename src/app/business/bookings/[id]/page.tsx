@@ -32,6 +32,13 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
   const conversationId = booking.conversations?.id ?? null;
   const dispute = booking.disputes.toSorted((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const location = formatBookingLocation(booking);
+  const awaitingPayment: string[] = [
+    "requested",
+    "pending_provider",
+    "quoted",
+    "accepted",
+    "payment_pending",
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +66,14 @@ export default async function BusinessBookingPage({ params }: PageProps<"/busine
         {location && (
           <p className="flex items-center gap-2">
             <MapPin aria-hidden className="size-4 text-muted" />
-            {location}
+            <span>
+              {location}
+              {!booking.address_line && awaitingPayment.includes(booking.status) && (
+                <span className="block text-xs text-muted">
+                  The street address is shared once the customer has paid.
+                </span>
+              )}
+            </span>
           </p>
         )}
         {booking.guests && (

@@ -12,8 +12,9 @@ export const reportReasons = {
 
 export type ReportReason = keyof typeof reportReasons;
 
-// Nigerian phone numbers (080…, +234…, 234…) and email addresses, loosely. Used only to remind
-// people to keep talking on Concierge; messages are never changed or blocked because of it.
+// Nigerian phone numbers (080…, +234…, 234…) and email addresses, loosely. In chat this only
+// reminds people to keep talking on Concierge (the database also marks such messages for the team,
+// see `shares_contact`); booking notes and quotes, sent before anyone has paid, refuse them.
 const phonePattern = /(?:\+?234|\b0)[\s-]?[789][01][\s-]?\d{1}[\s-]?\d{3}[\s-]?\d{4}\b/;
 const emailPattern = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 

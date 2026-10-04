@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { AppError } from "@/lib/errors";
-import { createClient } from "@/lib/supabase/server";
+import { bearerToken, createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/roles";
 
 import {
@@ -34,7 +34,9 @@ export type SessionUser = {
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
+  // Mobile API: the token comes in the Authorization header rather than a cookie.
+  const token = await bearerToken();
+  const { data, error } = await supabase.auth.getUser(token ?? undefined);
   const userId = data?.user?.id;
   if (error || !userId) return null;
 

@@ -42,8 +42,15 @@ export async function sendPayoutAction(_prev: FormState, formData: FormData): Pr
 export async function refreshPayoutAction(_prev: FormState, formData: FormData): Promise<FormState> {
   let status: Outcome;
   try {
-    await requireRole("admin");
-    status = await refreshPayout(payoutIdSchema.parse(formData.get("payoutId")));
+    const admin = await requireRole("admin");
+    const payoutId = payoutIdSchema.parse(formData.get("payoutId"));
+    status = await refreshPayout(payoutId);
+    await recordAdminAction(admin, {
+      action: "payout.refresh",
+      targetType: "payouts",
+      targetId: payoutId,
+      metadata: { result: status },
+    });
   } catch (error) {
     return toFormError(error, "We couldn't check the payout. Please try again.");
   }

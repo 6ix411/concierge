@@ -38,7 +38,7 @@ const CRASH = "Something went wrong";
 const browser = await chromium.launch();
 const errors = [];
 async function as(email, viewport = { width: 1280, height: 900 }) {
-  const ctx = await browser.newContext({ viewport });
+  const ctx = await browser.newContext({ serviceWorkers: "block", viewport });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
   if (email) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -134,7 +134,7 @@ export async function updateBusinessDetailsAction(_prev: FormState, formData: Fo
     };
   }
   if (next) redirect(next);
-  refresh();
+  refreshPage();
   return saved("Business details saved.");
 }
 
@@ -161,7 +161,7 @@ export async function addServiceAreaAction(_prev: FormState, formData: FormData)
   } catch (error) {
     return toFormError(error, "We couldn't add that area. Please try again.");
   }
-  refresh();
+  refreshPage();
   return saved("Area added.");
 }
 
@@ -170,7 +170,7 @@ export async function removeServiceAreaAction(areaId: string): Promise<void> {
   if (!isId(areaId)) return;
   const supabase = await createClient();
   await supabase.from("service_areas").delete().eq("id", areaId).eq("business_id", business.id);
-  refresh();
+  refreshPage();
 }
 
 // ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ export async function saveServiceAction(_prev: FormState, formData: FormData): P
       values: formValues(formData),
     };
   }
-  refresh();
+  refreshPage();
   return saved("Service saved.");
 }
 
@@ -232,7 +232,7 @@ export async function deleteServiceAction(serviceId: string): Promise<void> {
   const supabase = await createClient();
   // Past bookings keep their own copy of the name and price, so deleting is safe.
   await supabase.from("business_services").delete().eq("id", serviceId).eq("business_id", business.id);
-  refresh();
+  refreshPage();
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +290,7 @@ export async function saveWeeklyHoursAction(_prev: FormState, formData: FormData
     };
   }
   if (next) redirect(next);
-  refresh();
+  refreshPage();
   return saved("Working hours saved.");
 }
 
@@ -322,7 +322,7 @@ export async function saveBookingSettingsAction(_prev: FormState, formData: Form
       values: formValues(formData),
     };
   }
-  refresh();
+  refreshPage();
   return saved("Booking settings saved.");
 }
 
@@ -349,7 +349,7 @@ export async function addDayOffAction(_prev: FormState, formData: FormData): Pro
   } catch (error) {
     return toFormError(error, "We couldn't add that day off. Please try again.");
   }
-  refresh();
+  refreshPage();
   return saved("Day off added.");
 }
 
@@ -363,7 +363,7 @@ export async function removeAvailabilityAction(availabilityId: string): Promise<
     .eq("id", availabilityId)
     .eq("business_id", business.id)
     .not("specific_date", "is", null);
-  refresh();
+  refreshPage();
 }
 
 const isId = (value: unknown) => z.guid().safeParse(value).success;
@@ -420,7 +420,7 @@ export async function addPortfolioItemAction(input: {
   } catch (error) {
     return toFormError(error, "We couldn't add that to your portfolio. Please try again.");
   }
-  refresh();
+  refreshPage();
   return saved("Added to your portfolio.");
 }
 
@@ -436,7 +436,7 @@ export async function removePortfolioItemAction(itemId: string): Promise<void> {
     .select("storage_path");
   const paths = (data ?? []).map((row) => row.storage_path);
   if (paths.length > 0) await supabase.storage.from("business-media").remove(paths);
-  refresh();
+  refreshPage();
 }
 
 export async function setBusinessImageAction(kind: "logo" | "cover", path: string): Promise<FormState> {
@@ -458,7 +458,7 @@ export async function setBusinessImageAction(kind: "logo" | "cover", path: strin
   } catch (error) {
     return toFormError(error, "We couldn't save that image. Please try again.");
   }
-  refresh();
+  refreshPage();
   return saved(kind === "logo" ? "Logo updated." : "Cover photo updated.");
 }
 
@@ -520,7 +520,7 @@ export async function submitVerificationDocumentAction(input: {
   } catch (error) {
     return toFormError(error, "We couldn't submit that document. Please try again.");
   }
-  refresh();
+  refreshPage();
   return saved("Document submitted. We'll review it shortly.");
 }
 

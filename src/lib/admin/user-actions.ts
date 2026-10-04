@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -91,6 +91,6 @@ export async function setUserStatusAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the account. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }

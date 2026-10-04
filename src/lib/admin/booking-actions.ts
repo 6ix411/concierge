@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -70,7 +70,7 @@ export async function adminBookingAction(
         await markBookingRefunded(booking.id, admin.id);
         message = `${formatNaira(paid)} refunded to the customer.`;
       }
-      refresh();
+      refreshPage();
       return { status: "success", message };
     }
 
@@ -125,6 +125,6 @@ export async function adminBookingAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the booking. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { ServiceWorker } from "@/components/layout/service-worker";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { getSessionUser } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -15,6 +16,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: { default: "Concierge by 6IX", template: "%s · Concierge by 6IX" },
   description: "Tell our concierge what you need and get matched with verified businesses.",
+  applicationName: "Concierge by 6IX",
+  // Installed on an iPhone home screen: full screen, with the app's own name under the icon.
+  appleWebApp: { capable: true, title: "Concierge", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -39,6 +44,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex flex-1 flex-col">{children}</main>
         <SiteFooter />
         {showBottomNav && <BottomNav />}
+        <ServiceWorker />
       </body>
     </html>
   );

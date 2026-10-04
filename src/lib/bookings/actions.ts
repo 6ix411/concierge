@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { redirect } from "next/navigation";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -196,6 +196,9 @@ export async function createBookingAction(
         status: "error",
         message: `You already have a booking with ${business.name} at that time. You can find it in My bookings.`,
       };
+    // The database refuses businesses that stopped taking bookings (or whose owner was suspended).
+    if (createError?.code === "23514")
+      return { status: "error", message: `${business.name} isn't taking bookings right now.` };
     if (createError || !created)
       throw new AppError("INTERNAL", "Could not create the booking.", { cause: createError });
 
@@ -275,7 +278,7 @@ export async function cancelBookingAction(_prev: FormState, formData: FormData):
   } catch (error) {
     return toFormError(error, "We couldn't cancel the booking. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Booking cancelled." };
 }
 
@@ -338,7 +341,7 @@ export async function rescheduleBookingAction(_prev: FormState, formData: FormDa
   } catch (error) {
     return toFormError(error, "We couldn't change the time. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "New time saved." };
 }
 

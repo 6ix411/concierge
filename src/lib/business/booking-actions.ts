@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { recordPayout } from "@/lib/bookings/payouts";
@@ -119,7 +119,7 @@ export async function updateBookingStatusAction(
   } catch (error) {
     return toFormError(error, "We couldn't update the booking. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Booking updated." };
 }
 
@@ -175,6 +175,6 @@ export async function sendQuoteAction(_prev: FormState, formData: FormData): Pro
   } catch (error) {
     return toFormError(error, "We couldn't send the quote. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Quote sent." };
 }

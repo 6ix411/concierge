@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
 import { AppError } from "@/lib/errors";
@@ -47,7 +47,7 @@ export async function replyToReviewAction(_prev: FormState, formData: FormData):
   } catch (error) {
     return toFormError(error, "We couldn't save your reply. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Reply posted." };
 }
 
@@ -90,6 +90,6 @@ export async function reportReviewAction(_prev: FormState, formData: FormData): 
   } catch (error) {
     return toFormError(error, "We couldn't send your report. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Sent. The Concierge team will check it against the guidelines." };
 }

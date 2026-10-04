@@ -1,6 +1,11 @@
 import { z } from "zod";
 
+import { sharesContactDetails } from "@/lib/chat/rules";
 import { addDays, lagosToday } from "@/lib/dates";
+
+/** Phone numbers and emails stay private until the booking is confirmed (then the chat opens). */
+export const NO_CONTACT_DETAILS =
+  "Please leave out phone numbers and email addresses. You can chat on Concierge once the booking is confirmed.";
 
 const date = z
   .string()
@@ -28,7 +33,12 @@ export const bookingRequestSchema = z
       .min(1, "Enter at least 1.")
       .max(100000, "That's more guests than we can book.")
       .optional(),
-    notes: z.string().trim().max(3000).optional(),
+    notes: z
+      .string()
+      .trim()
+      .max(3000)
+      .refine((value) => !sharesContactDetails(value), NO_CONTACT_DETAILS)
+      .optional(),
   })
   .superRefine((value, ctx) => {
     if (value.mode === "book" && value.serviceIds.length === 0 && !value.packageId) {

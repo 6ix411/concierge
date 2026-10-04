@@ -39,7 +39,7 @@ const badgeIs = async (p, text, timeout = 15000) => {
 const browser = await chromium.launch();
 const errors = [];
 async function as(email, viewport = { width: 1280, height: 900 }) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ serviceWorkers: "block", viewport, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(`${email}: ${e.message}`));
   await p.goto(base + "/sign-in");
@@ -60,7 +60,11 @@ const tuesday = (days) => {
 
 try {
   // ---- 1. Registration
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({
+    serviceWorkers: "block",
+    viewport: { width: 1280, height: 900 },
+    deviceScaleFactor: 2,
+  });
   const fresh = await ctx.newPage();
   fresh.on("pageerror", (e) => errors.push(`signup: ${e.message}`));
   await fresh.goto(base + "/sign-up");

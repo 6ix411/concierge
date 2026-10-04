@@ -5,6 +5,18 @@ Customers describe what they need to an AI Concierge, which recommends only busi
 registered and approved on this platform. After booking, customers and businesses talk directly in a
 human-to-human chat; the AI never takes part in that conversation.
 
+## Documentation
+
+| Document                                       | What it covers                                            |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| This README                                    | Setup, scripts and how each feature works                 |
+| [docs/architecture.md](docs/architecture.md)   | How the system fits together, and the path to native apps |
+| [docs/database.md](docs/database.md)           | Tables, statuses, who can see what, functions, buckets    |
+| [docs/api.md](docs/api.md)                     | The `/api/v1` JSON API for the iOS and Android apps       |
+| [docs/environment.md](docs/environment.md)     | Every environment variable                                |
+| [docs/deployment.md](docs/deployment.md)       | Step-by-step production deployment                        |
+| [docs/product-rules.md](docs/product-rules.md) | The 12 core product rules, where each is enforced, tests  |
+
 ## Stack
 
 | Concern      | Choice                                                     |
@@ -652,6 +664,21 @@ The browser suite `e2e/suites/mobile.mjs` walks the whole journey on an iPhone-s
 concierge match, compare, book, business accepts, pay, chat both ways, complete, review, and checks
 every page fits a 320px screen.
 
+### Installable app and future native apps
+
+The first version is a responsive web app that can be installed. Native iOS and Android apps are not
+built yet; when they are, they will use the same backend.
+
+- **Install:** Chrome and Android offer "Install app"; on iPhone, Share → Add to Home Screen. The app
+  opens full screen with its own icon and shortcuts to Find My Provider, bookings and messages
+  (`src/app/manifest.ts`).
+- **Offline:** without a connection, pages show a friendly offline screen instead of the browser's
+  error. The service worker (`public/sw.js`) caches nothing personal.
+- **API for apps:** `/api/v1` gives native apps search, profiles, the concierge, bookings, payments,
+  reviews and notifications, with a bearer token from Supabase Auth. It runs the website's own
+  server code, so the rules are the same. See [docs/api.md](docs/api.md) and
+  [docs/architecture.md](docs/architecture.md#ready-for-native-apps).
+
 ## Security
 
 - **Access:** every page and action checks the user on the server (`src/lib/auth/session.ts`, which
@@ -696,36 +723,41 @@ Three layers, all run in CI on every pull request:
   line per check. Run one or a few with `npm run test:e2e -- booking chat`; screenshots land in
   `e2e/screenshots`. Needs `npm run build`, the local Supabase stack and
   `npx playwright install chromium`.
+  Suites block the service worker (`serviceWorkers: "block"`), because Playwright's request routing
+  and user-agent settings don't reach requests a service worker makes. The `api` suite tests the
+  service worker itself.
 
 What each area is covered by (unit = `src/**/*.test.ts`, db = `supabase/tests`, e2e = `e2e/suites`):
 
-| Area                  | Where                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| Authentication        | unit `auth/session`, `auth/schemas`; e2e `notifications` (sign-up), `security`, `customer` |
-| Authorization         | db `access_control`, `security`; unit `auth/permissions`; e2e `security`                   |
-| Provider approval     | db `business_onboarding`; e2e `admin`                                                      |
-| AI matching           | unit `concierge/*`, `matching/*`; db `matching_engine`; e2e `concierge`, `matching`        |
-| Business search       | db `matching_engine`; e2e `matching`, `profiles`                                           |
-| Booking               | unit `bookings/*`; db `booking_engine`; e2e `booking`                                      |
-| Payment               | unit `payments/*`; db `payments`; e2e `payments`, `revenue`                                |
-| Payment webhooks      | unit `payments/providers`; e2e `payments`, `security`                                      |
-| Chat                  | unit `chat/chat`; db `chat`; e2e `chat`                                                    |
-| File uploads          | unit `security/security`; e2e `chat`, `disputes`, `security`                               |
-| Reviews               | unit `reviews/reviews`; db `reviews`; e2e `reviews`                                        |
-| Disputes              | unit `disputes/disputes`; db `disputes`; e2e `disputes`                                    |
-| Notifications         | unit `notifications/notifications`; db `notifications`; e2e `notifications`                |
-| Admin permissions     | unit `auth/admin-path`; db `admin_dashboard`; e2e `admin`, `security`                      |
-| Security              | db `security`; unit `security/security`, `rate-limit`; e2e `security`                      |
-| Mobile responsiveness | e2e `mobile` (whole journey on a phone, every page at 320px)                               |
-| Error states          | unit `errors/http`, `utils/connection`; e2e `resilience`                                   |
-| Empty states          | e2e `resilience`                                                                           |
-| Loading states        | e2e `resilience`                                                                           |
-| Network failures      | unit `utils/connection`; e2e `resilience` (offline, lost replies)                          |
-| Duplicate bookings    | db `duplicates`; e2e `resilience` (double tap, retry, same slot)                           |
-| Duplicate payments    | e2e `resilience` (second checkout reused, second charge refunded)                          |
-| Unauthorized access   | db `access_control`; e2e `security` (changed ids, other users' pages)                      |
-| AI hallucinations     | unit `concierge/agent`, `concierge/rules`; e2e `concierge`                                 |
-| Prompt injection      | unit `concierge/injection`; e2e `concierge`                                                |
+| Area                  | Where                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| Authentication        | unit `auth/session`, `auth/schemas`; e2e `notifications` (sign-up), `security`, `customer`   |
+| Authorization         | db `access_control`, `security`; unit `auth/permissions`; e2e `security`                     |
+| Provider approval     | db `business_onboarding`; e2e `admin`                                                        |
+| AI matching           | unit `concierge/*`, `matching/*`; db `matching_engine`; e2e `concierge`, `matching`          |
+| Business search       | db `matching_engine`; e2e `matching`, `profiles`                                             |
+| Booking               | unit `bookings/*`; db `booking_engine`; e2e `booking`                                        |
+| Payment               | unit `payments/*`; db `payments`; e2e `payments`, `revenue`                                  |
+| Payment webhooks      | unit `payments/providers`; e2e `payments`, `security`                                        |
+| Chat                  | unit `chat/chat`; db `chat`; e2e `chat`                                                      |
+| File uploads          | unit `security/security`; e2e `chat`, `disputes`, `security`                                 |
+| Reviews               | unit `reviews/reviews`; db `reviews`; e2e `reviews`                                          |
+| Disputes              | unit `disputes/disputes`; db `disputes`; e2e `disputes`                                      |
+| Notifications         | unit `notifications/notifications`; db `notifications`; e2e `notifications`                  |
+| Admin permissions     | unit `auth/admin-path`; db `admin_dashboard`; e2e `admin`, `security`                        |
+| Security              | db `security`; unit `security/security`, `rate-limit`; e2e `security`                        |
+| Mobile responsiveness | e2e `mobile` (whole journey on a phone, every page at 320px)                                 |
+| Error states          | unit `errors/http`, `utils/connection`; e2e `resilience`                                     |
+| Empty states          | e2e `resilience`                                                                             |
+| Loading states        | e2e `resilience`                                                                             |
+| Network failures      | unit `utils/connection`; e2e `resilience` (offline, lost replies)                            |
+| Duplicate bookings    | db `duplicates`; e2e `resilience` (double tap, retry, same slot)                             |
+| Duplicate payments    | e2e `resilience` (second checkout reused, second charge refunded)                            |
+| Unauthorized access   | db `access_control`; e2e `security` (changed ids, other users' pages)                        |
+| AI hallucinations     | unit `concierge/agent`, `concierge/rules`; e2e `concierge`                                   |
+| Prompt injection      | unit `concierge/injection`; e2e `concierge`                                                  |
+| Core product rules    | db `product_rules`; unit `concierge/guard`; e2e `api` (see docs/product-rules.md)            |
+| App API and PWA       | unit `api/v1`; e2e `api` (tokens, cookies ignored, other users' bookings, manifest, offline) |
 
 ### Duplicates and dropped connections
 

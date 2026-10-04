@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
@@ -63,7 +63,7 @@ export async function startDisputeReviewAction(_prev: FormState, formData: FormD
   } catch (error) {
     return toFormError(error, "We couldn't update the dispute. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Marked as under review." };
 }
 
@@ -148,7 +148,7 @@ export async function resolveDisputeAction(
   } catch (error) {
     return toFormError(error, "We couldn't close the dispute. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }
 
@@ -213,7 +213,7 @@ export async function escalateDisputeAction(_prev: FormState, formData: FormData
   } catch (error) {
     return toFormError(error, "We couldn't escalate the dispute. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Escalated." };
 }
 
@@ -256,6 +256,12 @@ export async function adminDisputeMessageAction(_prev: FormState, formData: Form
       messageId = data.id;
     }
     await saveEvidence(dispute.id, { id: admin.id, role: "admin" }, files, messageId);
+    await recordAdminAction(admin, {
+      action: internal ? "dispute.note" : "dispute.message",
+      targetType: "disputes",
+      targetId: dispute.id,
+      metadata: { files: files.length },
+    });
     if (!internal)
       await notify(
         ...partiesOf(dispute.booking).map((userId) => ({
@@ -269,6 +275,6 @@ export async function adminDisputeMessageAction(_prev: FormState, formData: Form
   } catch (error) {
     return toFormError(error, "We couldn't send that. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: internal ? "Note saved." : "Sent to both sides." };
 }

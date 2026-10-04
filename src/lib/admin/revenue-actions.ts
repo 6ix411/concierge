@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
 import { fieldErrorsFrom, type FormState } from "@/lib/auth/schemas";
@@ -75,7 +75,7 @@ export async function updatePlanAction(_prev: FormState, formData: FormData): Pr
   } catch (error) {
     return toFormError(error, "We couldn't save the plan. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }
 
@@ -111,7 +111,7 @@ export async function updateFeaturedPackageAction(_prev: FormState, formData: Fo
   } catch (error) {
     return toFormError(error, "We couldn't save the price. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Price saved." };
 }
 
@@ -133,7 +133,7 @@ export async function updateFeaturedSlotsAction(_prev: FormState, formData: Form
   } catch (error) {
     return toFormError(error, "We couldn't save that. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Saved." };
 }
 
@@ -169,6 +169,6 @@ export async function updateBookingFeeAction(_prev: FormState, formData: FormDat
   } catch (error) {
     return toFormError(error, "We couldn't save the booking fee. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }

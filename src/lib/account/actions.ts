@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { fieldErrorsFrom, newPasswordSchema, type FormState } from "@/lib/auth/schemas";
@@ -61,7 +61,7 @@ export async function updateProfileAction(_prev: FormState, formData: FormData):
       return { status: "error", message: "We couldn't save your address. Please try again." };
     }
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Saved." };
 }
 

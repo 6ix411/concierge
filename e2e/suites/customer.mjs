@@ -15,7 +15,11 @@ const check = (name, ok, extra = "") => results.push(`${ok ? "PASS" : "FAIL"} ${
 const shot = (p, name) => p.screenshot({ path: `${shots}/${name}.png`, fullPage: true });
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+const ctx = await browser.newContext({
+  serviceWorkers: "block",
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+});
 const p = await ctx.newPage();
 const consoleErrors = [];
 p.on("pageerror", (e) => consoleErrors.push(e.message));

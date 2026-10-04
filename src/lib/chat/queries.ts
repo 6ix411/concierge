@@ -61,7 +61,7 @@ export async function getConversation(conversationId: string) {
   const { data: conversation, error } = await supabase
     .from("conversations")
     .select(
-      "id, status, customer_id, business_id, booking_id, bookings(reference, status, scheduled_start, address_line, area, city, state, booking_items(name, kind)), businesses(name, slug, logo_path, owner_id), conversation_reads(user_id, last_read_at)",
+      "id, status, customer_id, business_id, booking_id, bookings(reference, status, scheduled_start, area, city, state, booking_items(name, kind)), businesses(name, slug, logo_path, owner_id), conversation_reads(user_id, last_read_at)",
     )
     .eq("id", conversationId)
     .maybeSingle();
@@ -100,7 +100,15 @@ export async function getConversation(conversationId: string) {
     attachment_url: m.attachment_path ? (signed.get(m.attachment_path) ?? null) : null,
   }));
 
-  return { ...conversation, block, messages };
+  // The street address comes through booking_address, which shows it only to those allowed.
+  const { data: addressLine } = await supabase.rpc("booking_address", {
+    p_booking_id: conversation.booking_id,
+  });
+  const bookings = conversation.bookings
+    ? { ...conversation.bookings, address_line: addressLine ?? null }
+    : null;
+
+  return { ...conversation, bookings, block, messages };
 }
 
 /** Conversations for a business the signed-in owner runs, newest activity first. */

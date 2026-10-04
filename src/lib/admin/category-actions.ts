@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { recordAdminAction } from "@/lib/auth/admin-audit";
@@ -94,7 +94,7 @@ export async function saveCategoryAction(_prev: FormState, formData: FormData): 
   } catch (error) {
     return { ...toFormError(error, "We couldn't save the category. Please try again."), values };
   }
-  refresh();
+  refreshPage();
   return { status: "success", message };
 }
 
@@ -139,6 +139,6 @@ export async function deleteCategoryAction(_prev: FormState, formData: FormData)
   } catch (error) {
     return toFormError(error, "We couldn't delete the category. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Category deleted." };
 }

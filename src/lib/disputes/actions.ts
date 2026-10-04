@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { refresh } from "next/cache";
+import { refreshPage } from "@/lib/utils/refresh";
 import { z } from "zod";
 
 import { canOpenDispute, type DisputeStatus } from "@/lib/admin/rules";
@@ -217,7 +217,7 @@ export async function postDisputeMessageAction(_prev: FormState, formData: FormD
   } catch (error) {
     return toFormError(error, "We couldn't send that. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Sent." };
 }
 
@@ -275,6 +275,6 @@ export async function withdrawDisputeAction(disputeId: string, _prev: FormState)
   } catch (error) {
     return toFormError(error, "We couldn't withdraw the dispute. Please try again.");
   }
-  refresh();
+  refreshPage();
   return { status: "success", message: "Dispute withdrawn." };
 }
